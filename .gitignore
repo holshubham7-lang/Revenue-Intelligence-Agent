@@ -9,6 +9,12 @@ apps.googleusercontent.com.json
 /0
 /revops app details.txt
 /RevOps-Agent-V1.0-Technical-Documentation.docx
+/*.doc
+/*.docx
+/*.txt
+/*.pdf
+/*.md
+/*.log
 
 # Node
 node_modules/
