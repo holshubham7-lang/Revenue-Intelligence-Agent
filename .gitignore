@@ -5,6 +5,11 @@
 # Legacy Google OAuth client JSON (should no longer be used; secrets moved to Key Vault)
 apps.googleusercontent.com.json
 
+# Local-only root files (docs / notes are kept out of the repo)
+/0
+/revops app details.txt
+/RevOps-Agent-V1.0-Technical-Documentation.docx
+
 # Node
 node_modules/
 
