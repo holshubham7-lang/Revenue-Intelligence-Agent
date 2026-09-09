@@ -1,0 +1,22 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+# Legacy Google OAuth client JSON (should no longer be used; secrets moved to Key Vault)
+apps.googleusercontent.com.json
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Build output
+frontend/.next/
+api/dist/
+*.tsbuildinfo
+admin/api/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
