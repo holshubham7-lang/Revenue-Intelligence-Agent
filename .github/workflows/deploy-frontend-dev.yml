@@ -1,0 +1,42 @@
+name: Deploy Frontend (dev)
+
+on:
+  push:
+    branches: [development]
+    paths: ['frontend/**']
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: https://revops-api-dev.azurewebsites.net
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Login to Azure
+        uses: Azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to App Service
+        uses: Azure/webapps-deploy@v3
+        with:
+          app-name: revops-frontend-dev
+          resource-group-name: stratvedaos_group
+          package: frontend
