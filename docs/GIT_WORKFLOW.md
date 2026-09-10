@@ -58,5 +58,7 @@ Each step is a Pull Request; never merge straight into `main` from a feature bra
 
 ## Notes
 
+- The repository is **private**. Clone and push require authentication and collaborator (write) access granted by the admin.
+- New developers must be added as collaborators manually by the admin before they can access or push.
 - Never commit secrets or `.env` files — they are gitignored.
 - Root-level docs, notes, and text files are excluded from the repository.

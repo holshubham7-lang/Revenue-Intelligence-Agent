@@ -15,7 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import type { Request, Response } from 'express';
-import { getSessionCookie, setSessionCookie } from '../auth/session-cookie.js';
+import { getSessionCookie, isCookieSecure, getCookieSameSite, setSessionCookie } from '../auth/session-cookie.js';
 import { UsersService } from '../users/users.service.js';
 import { SocialAuthService } from './social-auth.service.js';
 import { SOCIAL_PROVIDERS, SocialProvider } from './social.providers.js';
@@ -61,10 +61,16 @@ export class SocialAuthController {
 
     const state = crypto.randomBytes(32).toString('base64url');
 
+    // The OAuth dance runs across three different sites (frontend -> this API
+    // -> provider -> this API). Mobile browsers drop SameSite=Lax cookies in
+    // that cross-site redirect chain (ITP / third-party-cookie blocking), which
+    // surfaces as "Invalid OAuth state" on phones while desktop keeps working.
+    // Match the session cookie's SameSite/Secure attributes so the short-lived
+    // state token survives the round trip in cross-site deployments too.
     res.cookie(STATE_COOKIE, state, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: this.configService.get<string>('COOKIE_SECURE') === 'true',
+      sameSite: getCookieSameSite(this.configService),
+      secure: isCookieSecure(this.configService),
       path: '/',
       maxAge: 10 * 60 * 1000, // 10 minutes
     });
@@ -100,7 +106,11 @@ export class SocialAuthController {
       if (!expectedState || expectedState !== state) {
         throw new UnauthorizedException('Invalid OAuth state');
       }
-      res.clearCookie(STATE_COOKIE);
+      res.clearCookie(STATE_COOKIE, {
+        sameSite: getCookieSameSite(this.configService),
+        secure: isCookieSecure(this.configService),
+        path: '/',
+      });
 
       const profile = await this.socialAuth.exchangeCode(provider, code, state);
       const { user } = await this.usersService.createFromSocial({
@@ -130,7 +140,11 @@ export class SocialAuthController {
       // SPA, so the browser can't consume a JSON error body. Redirect back to
       // the frontend with the reason as a query param; the sign-in page
       // surfaces it as a toast.
-      res.clearCookie(STATE_COOKIE);
+      res.clearCookie(STATE_COOKIE, {
+        sameSite: getCookieSameSite(this.configService),
+        secure: isCookieSecure(this.configService),
+        path: '/',
+      });
       const message =
         err instanceof HttpException && err.message
           ? err.message

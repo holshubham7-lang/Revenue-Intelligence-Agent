@@ -28,6 +28,9 @@ api/dist/
 *.tsbuildinfo
 admin/api/dist/
 
+# Local deploy artifacts (Azure App Service packages)
+*-deploy.zip
+
 # OS / editor
 .DS_Store
 Thumbs.db
