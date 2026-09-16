@@ -76,12 +76,15 @@ export function titleFrom(content: string): string {
     : collapsed;
 }
 
-export function createChatSession(messages: ChatMessage[]): ChatSession {
+export function createChatSession(
+  messages: ChatMessage[],
+  title?: string,
+): ChatSession {
   const now = new Date().toISOString();
   const firstUser = messages.find((m) => m.role === "user");
   return {
     id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    title: titleFrom(firstUser?.content ?? ""),
+    title: title ?? titleFrom(firstUser?.content ?? ""),
     createdAt: now,
     updatedAt: now,
     messages: messages.map(({ role, content }) => ({ role, content })),

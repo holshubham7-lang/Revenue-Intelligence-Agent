@@ -630,7 +630,25 @@ export function DashboardShell() {
 
         {user && companyReady && onboardingOpen ? (
           <CompanyOnboarding
-            onDone={() => setOnboardingOpen(false)}
+onDone={(result) => {
+              setOnboardingOpen(false);
+              if (result) {
+                const created = createChatSession(
+                  [{ role: "assistant", content: result }],
+                  "Revenue Intelligence assessment",
+                );
+                const nextChats = [created, ...chatsRef.current];
+                chatsRef.current = nextChats;
+                setChats(nextChats);
+                activeChatIdRef.current = created.id;
+                setActiveChatId(created.id);
+                setMessages([{ role: "assistant", content: result }]);
+                saveChatHistory({
+                  sessions: nextChats,
+                  activeId: created.id,
+                });
+              }
+            }}
           />
         ) : (
         <div ref={scrollRef} className="flex-1 overflow-y-auto">

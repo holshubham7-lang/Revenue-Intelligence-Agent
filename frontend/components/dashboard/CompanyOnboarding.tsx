@@ -8,7 +8,7 @@ import { API_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type CompanyOnboardingProps = {
-  onDone: () => void;
+  onDone: (result?: string) => void;
 };
 
 type Stage = "loading" | "answering" | "submitting" | "result" | "error";
@@ -284,7 +284,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
                 type="button"
                 variant="primary"
                 size="lg"
-                onClick={onDone}
+                onClick={() => onDone(result)}
                 className="min-w-52"
               >
                 Start chatting with your agent
@@ -321,7 +321,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
               </div>
               <button
                 type="button"
-                onClick={onDone}
+                onClick={() => onDone()}
                 className={cn(
                   "mt-4 cursor-pointer text-sm font-semibold text-ink-muted transition-colors hover:text-ink",
                 )}
