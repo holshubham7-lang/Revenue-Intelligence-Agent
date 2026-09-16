@@ -13,8 +13,15 @@ type CompanyOnboardingProps = {
 
 type Stage = "loading" | "answering" | "submitting" | "result" | "error";
 
-const INTRO_MESSAGE =
-  "Welcome! Before we dive into your revenue data, I'd like to ask a few quick questions. Your answers let me tailor the assessment to your business. Answer one at a time.";
+type Message = {
+  role: "assistant" | "user";
+  content: string;
+};
+
+const WELCOME_MESSAGE =
+  "Hey! 👋 I'm the Revenue Intelligence Agent. Before we dive into your revenue data, I'd like to ask a few quick questions to tailor your assessment to your business. Let's begin!";
+
+const THINKING_DELAY_MS = 800;
 
 export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   const [stage, setStage] = useState<Stage>("loading");
@@ -28,9 +35,19 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
     null,
   );
   const [runId, setRunId] = useState(0);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     onDoneRef.current = onDone;
@@ -38,6 +55,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
 
   useEffect(() => {
     let cancelled = false;
+    let typingTimer: number | null = null;
     (async () => {
       try {
         const response = await fetch(`${API_URL}/agent/onboarding/questions`, {
@@ -63,6 +81,16 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
         setAnswers(Array(data.questions.length).fill(""));
         setIndex(0);
         setDraft("");
+        setMessages([{ role: "assistant", content: WELCOME_MESSAGE }]);
+        setIsTyping(true);
+        typingTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: data.questions[0] },
+          ]);
+          setIsTyping(false);
+        }, THINKING_DELAY_MS);
         setStage("answering");
       } catch (err) {
         if (cancelled) return;
@@ -73,62 +101,63 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
     })();
     return () => {
       cancelled = true;
+      if (typingTimer) window.clearTimeout(typingTimer);
     };
   }, [runId]);
 
   useEffect(() => {
-    if (stage === "answering") {
+    if (stage === "answering" && !isTyping) {
       inputRef.current?.focus();
     }
-  }, [stage, index]);
+  }, [stage, index, isTyping]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [index, stage, questions]);
+  }, [messages, isTyping]);
 
   function retry() {
     setError("");
+    setMessages([]);
     if (failedStage === "submit") {
-      void submit();
+      setIsTyping(true);
+      void submitWithAnswers(
+        answers.map((a, i) => (i === index ? draft.trim() : a)),
+      );
       return;
     }
     setStage("loading");
     setRunId((id) => id + 1);
   }
 
-  function persistCurrentAnswer() {
-    setAnswers((prev) => {
-      const copy = [...prev];
-      copy[index] = draft.trim();
-      return copy;
-    });
-  }
-
-  function goBack() {
-    if (index === 0) return;
-    persistCurrentAnswer();
-    setIndex((i) => i - 1);
-    setDraft(answers[index - 1] ?? "");
-  }
-
   function goNext() {
-    if (!draft.trim()) return;
-    persistCurrentAnswer();
+    const content = draft.trim();
+    if (!content || isTyping) return;
+    const finalAnswers = answers.map((a, i) => (i === index ? content : a));
+    setAnswers(finalAnswers);
+    setMessages((prev) => [...prev, { role: "user", content }]);
+    setDraft("");
+    setIsTyping(true);
+
     if (index < questions.length - 1) {
-      setIndex((i) => i + 1);
-      setDraft(answers[index + 1] ?? "");
+      const nextIndex = index + 1;
+      setIndex(nextIndex);
+      window.setTimeout(() => {
+        if (!mountedRef.current) return;
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: questions[nextIndex] },
+        ]);
+        setIsTyping(false);
+      }, THINKING_DELAY_MS);
     } else {
-      void submit();
+      void submitWithAnswers(finalAnswers);
     }
   }
 
-  async function submit() {
-    const finalAnswers = answers.map((a, i) =>
-      i === index ? draft.trim() : a,
-    );
+  async function submitWithAnswers(finalAnswers: string[]) {
     setStage("submitting");
     setError("");
     try {
@@ -147,31 +176,26 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
       }
       const data = (await response.json()) as { result: string };
       setResult(data.result);
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.result },
+      ]);
       setStage("result");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setFailedStage("submit");
+      setIsTyping(false);
       setStage("error");
     }
   }
 
-  const total = questions.length;
-  const answeredCount =
-    stage === "answering" ? index + (draft.trim() ? 1 : 0) : total;
-  const progressPercent =
-    total > 0 ? Math.min(100, Math.round((answeredCount / total) * 100)) : 0;
-
-  const canSend = Boolean(draft.trim()) && stage === "answering";
-
-  const askedQuestions = questions.slice(
-    0,
-    stage === "answering" ? index : total,
-  );
+  const canSend = Boolean(draft.trim()) && stage === "answering" && !isTyping;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
+        <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-6">
           {stage === "loading" ? (
             <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
               <Icon
@@ -185,159 +209,127 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
             </div>
           ) : null}
 
-          {stage === "answering" || stage === "submitting" ? (
-            <>
-              {total > 0 ? (
-                <div className="mx-auto w-full max-w-md">
-                  <div className="mb-1.5 flex items-center justify-between text-xs text-ink-faint">
-                    <span>
-                      Question {Math.min(index + 1, total)} of {total}
-                    </span>
-                    <span>{progressPercent}%</span>
+          {(stage === "answering" ||
+            stage === "submitting" ||
+            stage === "result") &&
+            messages.map((msg, i) => {
+              if (msg.role === "user") {
+                return (
+                  <div key={i} className="flex justify-end">
+                    <div className="max-w-[80%] rounded-2xl rounded-br-md bg-brand-600 px-4 py-3 text-[0.9375rem] leading-relaxed text-white">
+                      {msg.content}
+                    </div>
                   </div>
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-surface-soft">
-                    <div
-                      className="h-full rounded-full bg-brand-500 transition-all duration-300"
-                      style={{ width: `${progressPercent}%` }}
-                    />
+                );
+              }
+              return (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200/60">
+                    <Icon name="spark" size={16} />
+                  </span>
+                  <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                    {stage === "result" && i === messages.length - 1 ? (
+                      <>
+                        <p className="mb-3 text-sm font-semibold text-brand-700">
+                          Assessment complete ✨
+                        </p>
+                        <Markdown content={msg.content} />
+                      </>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
-              ) : null}
+              );
+            })}
 
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
-                  {INTRO_MESSAGE}
-                </div>
+          {isTyping && stage === "answering" ? (
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200/60">
+                <Icon name="spark" size={16} />
+              </span>
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3.5">
+                <span className="inline-block size-1.5 rounded-full bg-brand-400 animate-[pulse_1s_ease-in-out_infinite]" />
+                <span className="inline-block size-1.5 rounded-full bg-brand-400 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
+                <span className="inline-block size-1.5 rounded-full bg-brand-400 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
               </div>
-
-              {askedQuestions.map((question, i) => (
-                <div key={`qa-${i}`} className="space-y-6">
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
-                      {question}
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-600 px-4 py-3 text-[0.9375rem] leading-relaxed text-white">
-                      <span className="whitespace-pre-wrap">
-                        {answers[i]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {stage === "answering" && index < total ? (
-                <div className="flex justify-start">
-                  <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
-                    {questions[index]}
-                  </div>
-                </div>
-              ) : null}
-
-              {stage === "submitting" ? (
-                <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
-                    <Icon
-                      name="spark"
-                      size={16}
-                      className="animate-pulse-soft text-brand-600"
-                    />
-                    Analyzing your answers…
-                  </div>
-                </div>
-              ) : null}
-            </>
+            </div>
           ) : null}
 
-          {stage === "result" ? (
-            <>
-              <div className="flex justify-start">
-                <div className="max-w-[85%]">
-                  <div className="mb-1.5 flex items-center gap-2 text-[0.8125rem] font-semibold text-brand-700">
-                    <Icon name="check" size={15} />
-                    Assessment complete
-                  </div>
-                  <div className="rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
-                    <div className="mb-4">
-                      <h1 className="text-lg font-bold tracking-[-0.02em] text-ink">
-                        Your Revenue Intelligence assessment
-                      </h1>
-                      <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                        Here&apos;s what we found. Your agent can go deeper on
-                        any of this inside the chat.
-                      </p>
-                    </div>
-                    <Markdown content={result} />
-                  </div>
-                </div>
+          {isTyping && stage === "submitting" ? (
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200/60">
+                <Icon name="spark" size={16} />
+              </span>
+              <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
+                <Icon
+                  name="spark"
+                  size={16}
+                  className="animate-pulse-soft text-brand-600"
+                />
+                Analyzing your answers…
               </div>
-              <div className="flex justify-center">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="lg"
-                  onClick={() => onDone(result)}
-                  className="min-w-52"
-                >
-                  Start chatting with your agent
-                  <Icon name="arrow-right" size={16} />
-                </Button>
-              </div>
-            </>
+            </div>
           ) : null}
 
           {stage === "error" ? (
             <>
-              <div className="flex justify-start">
-                <div className="max-w-[85%] space-y-3">
-                  <div className="rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
-                    <span className="flex items-center gap-2 font-semibold text-danger-600">
-                      <Icon name="alert" size={18} />
-                      We hit a snag
-                    </span>
-                    <p className="mt-2">{error}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 pl-1">
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="md"
-                      onClick={retry}
-                    >
-                      <Icon name="refresh" size={16} />
-                      {failedStage === "submit"
-                        ? "Retry assessment"
-                        : "Try again"}
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => onDone()}
-                      className="cursor-pointer text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
-                    >
-                      Skip for now and open the dashboard
-                    </button>
-                  </div>
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger-50 text-danger-600 ring-1 ring-danger-200/60">
+                  <Icon name="alert" size={16} />
+                </span>
+                <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                  <p className="font-semibold text-danger-600">
+                    We hit a snag
+                  </p>
+                  <p className="mt-2">{error}</p>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 pl-11">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  onClick={retry}
+                >
+                  <Icon name="refresh" size={16} />
+                  {failedStage === "submit"
+                    ? "Retry assessment"
+                    : "Try again"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => onDone()}
+                  className="cursor-pointer text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+                >
+                  Skip for now
+                </button>
               </div>
             </>
           ) : null}
         </div>
       </div>
 
-      {stage === "answering" ? (
+      {stage === "result" ? (
+        <div className="border-t border-line bg-surface px-4 py-4 md:px-6">
+          <div className="mx-auto flex max-w-3xl justify-center">
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              onClick={() => onDone(result)}
+              className="min-w-52"
+            >
+              Start chatting with your agent
+              <Icon name="arrow-right" size={16} />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {stage === "answering" && !isTyping ? (
         <div className="flex border-t border-line bg-surface px-4 py-3 md:px-6">
           <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
-            {index > 0 ? (
-              <button
-                type="button"
-                onClick={goBack}
-                aria-label="Previous question"
-                className="mb-0.5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink"
-              >
-                <Icon name="arrow-left" size={18} />
-              </button>
-            ) : null}
             <div className="flex min-w-0 flex-1 items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
               <textarea
                 ref={inputRef}
@@ -350,8 +342,8 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
                   }
                 }}
                 rows={1}
-                placeholder={`Answer question ${index + 1} of ${total}…`}
-                aria-label={`Answer for question ${index + 1}`}
+                placeholder="Type your answer…"
+                aria-label="Message the Revenue Intelligence Agent"
                 className="max-h-48 min-h-6 flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] text-ink placeholder:text-ink-faint focus:outline-none"
               />
               <button
@@ -370,6 +362,10 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
               </button>
             </div>
           </div>
+          <p className="mx-auto mt-2 max-w-3xl text-center text-[0.6875rem] text-ink-faint">
+            AI-powered insights help you make better decisions. Verify critical
+            information when needed.
+          </p>
         </div>
       ) : null}
     </div>
