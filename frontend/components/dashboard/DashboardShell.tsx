@@ -767,7 +767,6 @@ onDone={(result) => {
         </main>
       </div>
 
-      {!onboardingOpen ? (
       <div className="flex border-t border-line">
         <div className="hidden w-64 shrink-0 border-r border-line bg-surface-muted md:flex md:flex-col md:justify-end">
           {user ? (
@@ -808,6 +807,7 @@ onDone={(result) => {
           ) : null}
         </div>
 
+        {!onboardingOpen ? (
         <div className="flex min-w-0 flex-1 flex-col bg-surface px-4 py-3 md:px-6">
           <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
             <textarea
@@ -843,8 +843,10 @@ onDone={(result) => {
             AI-powered insights help you make better decisions. Verify critical information when needed.
           </p>
         </div>
+        ) : (
+        <div id="onboarding-input-slot" className="flex min-w-0 flex-1 flex-col bg-surface px-4 py-3 md:px-6" />
+        )}
       </div>
-      ) : null}
 
       <DashboardFooter />
     </div>
