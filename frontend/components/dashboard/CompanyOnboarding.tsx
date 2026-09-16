@@ -13,8 +13,8 @@ type CompanyOnboardingProps = {
 
 type Stage = "loading" | "answering" | "submitting" | "result" | "error";
 
-const inputBase =
-  "w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20";
+const INTRO_MESSAGE =
+  "Welcome! Before we dive into your revenue data, I'd like to ask a few quick questions. Your answers let me tailor the assessment to your business. Answer one at a time.";
 
 export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   const [stage, setStage] = useState<Stage>("loading");
@@ -29,6 +29,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   );
   const [runId, setRunId] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
 
   useEffect(() => {
@@ -75,6 +76,19 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
     };
   }, [runId]);
 
+  useEffect(() => {
+    if (stage === "answering") {
+      inputRef.current?.focus();
+    }
+  }, [stage, index]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [index, stage, questions]);
+
   function retry() {
     setError("");
     if (failedStage === "submit") {
@@ -84,12 +98,6 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
     setStage("loading");
     setRunId((id) => id + 1);
   }
-
-  useEffect(() => {
-    if (stage === "answering") {
-      inputRef.current?.focus();
-    }
-  }, [stage, index]);
 
   function persistCurrentAnswer() {
     setAnswers((prev) => {
@@ -148,69 +156,189 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   }
 
   const total = questions.length;
+  const answeredCount =
+    stage === "answering" ? index + (draft.trim() ? 1 : 0) : total;
   const progressPercent =
-    total > 0
-      ? Math.min(
-          100,
-          Math.round(((index + (draft.trim() ? 1 : 0)) / total) * 100),
-        )
-      : 0;
+    total > 0 ? Math.min(100, Math.round((answeredCount / total) * 100)) : 0;
+
+  const canSend = Boolean(draft.trim()) && stage === "answering";
+
+  const askedQuestions = questions.slice(
+    0,
+    stage === "answering" ? index : total,
+  );
 
   return (
-    <>
-      <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
-        {stage === "loading" || stage === "submitting" ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3">
-            <Icon
-              name="spark"
-              size={28}
-              className="animate-pulse-soft text-brand-600"
-            />
-            <p className="text-sm text-ink-muted">
-              {stage === "loading"
-                ? "Preparing your questions…"
-                : "Analyzing your answers…"}
-            </p>
-          </div>
-        ) : null}
-
-        {stage === "answering" ? (
-          <div className="mx-auto w-full max-w-2xl">
-            <div className="mb-8 flex items-start gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-200/70">
-                <Icon name="question" size={22} />
-              </span>
-              <div>
-                <h1 className="text-xl font-bold tracking-[-0.02em] text-ink">
-                  A few questions before we begin
-                </h1>
-                <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                  Answer each question one at a time. Your answers let the
-                  Revenue Intelligence Agent tailor its assessment to your
-                  business.
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <span className="font-semibold text-ink">
-                  Question {index + 1} of {total}
-                </span>
-                <span className="text-ink-faint">{progressPercent}%</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-soft">
-                <div
-                  className="h-full rounded-full bg-brand-500 transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-line-strong bg-surface p-5">
-              <p className="text-base font-semibold leading-relaxed text-ink">
-                {questions[index]}
+    <div className="flex h-full min-h-0 flex-col">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
+          {stage === "loading" ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+              <Icon
+                name="spark"
+                size={28}
+                className="animate-pulse-soft text-brand-600"
+              />
+              <p className="text-sm text-ink-muted">
+                Preparing your questions…
               </p>
+            </div>
+          ) : null}
+
+          {stage === "answering" || stage === "submitting" ? (
+            <>
+              {total > 0 ? (
+                <div className="mx-auto w-full max-w-md">
+                  <div className="mb-1.5 flex items-center justify-between text-xs text-ink-faint">
+                    <span>
+                      Question {Math.min(index + 1, total)} of {total}
+                    </span>
+                    <span>{progressPercent}%</span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-surface-soft">
+                    <div
+                      className="h-full rounded-full bg-brand-500 transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                  {INTRO_MESSAGE}
+                </div>
+              </div>
+
+              {askedQuestions.map((question, i) => (
+                <div key={`qa-${i}`} className="space-y-6">
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                      {question}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-600 px-4 py-3 text-[0.9375rem] leading-relaxed text-white">
+                      <span className="whitespace-pre-wrap">
+                        {answers[i]}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {stage === "answering" && index < total ? (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                    {questions[index]}
+                  </div>
+                </div>
+              ) : null}
+
+              {stage === "submitting" ? (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
+                    <Icon
+                      name="spark"
+                      size={16}
+                      className="animate-pulse-soft text-brand-600"
+                    />
+                    Analyzing your answers…
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+
+          {stage === "result" ? (
+            <>
+              <div className="flex justify-start">
+                <div className="max-w-[85%]">
+                  <div className="mb-1.5 flex items-center gap-2 text-[0.8125rem] font-semibold text-brand-700">
+                    <Icon name="check" size={15} />
+                    Assessment complete
+                  </div>
+                  <div className="rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                    <div className="mb-4">
+                      <h1 className="text-lg font-bold tracking-[-0.02em] text-ink">
+                        Your Revenue Intelligence assessment
+                      </h1>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                        Here&apos;s what we found. Your agent can go deeper on
+                        any of this inside the chat.
+                      </p>
+                    </div>
+                    <Markdown content={result} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  onClick={() => onDone(result)}
+                  className="min-w-52"
+                >
+                  Start chatting with your agent
+                  <Icon name="arrow-right" size={16} />
+                </Button>
+              </div>
+            </>
+          ) : null}
+
+          {stage === "error" ? (
+            <>
+              <div className="flex justify-start">
+                <div className="max-w-[85%] space-y-3">
+                  <div className="rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+                    <span className="flex items-center gap-2 font-semibold text-danger-600">
+                      <Icon name="alert" size={18} />
+                      We hit a snag
+                    </span>
+                    <p className="mt-2">{error}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 pl-1">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="md"
+                      onClick={retry}
+                    >
+                      <Icon name="refresh" size={16} />
+                      {failedStage === "submit"
+                        ? "Retry assessment"
+                        : "Try again"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => onDone()}
+                      className="cursor-pointer text-sm font-semibold text-ink-muted transition-colors hover:text-ink"
+                    >
+                      Skip for now and open the dashboard
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      {stage === "answering" ? (
+        <div className="flex border-t border-line bg-surface px-4 py-3 md:px-6">
+          <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
+            {index > 0 ? (
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Previous question"
+                className="mb-0.5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+              >
+                <Icon name="arrow-left" size={18} />
+              </button>
+            ) : null}
+            <div className="flex min-w-0 flex-1 items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
               <textarea
                 ref={inputRef}
                 value={draft}
@@ -221,117 +349,29 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
                     goNext();
                   }
                 }}
-                rows={5}
-                placeholder="Type your answer…"
+                rows={1}
+                placeholder={`Answer question ${index + 1} of ${total}…`}
                 aria-label={`Answer for question ${index + 1}`}
-                className={`${inputBase} mt-4 resize-y`}
+                className="max-h-48 min-h-6 flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] text-ink placeholder:text-ink-faint focus:outline-none"
               />
-              <div className="mt-5 flex items-center justify-between gap-3">
-                {index > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="md"
-                    onClick={goBack}
-                  >
-                    <Icon name="arrow-left" size={16} />
-                    Back
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="lg"
-                  disabled={!draft.trim()}
-                  onClick={goNext}
-                  className="min-w-44"
-                >
-                  {index === total - 1 ? "Finish & get assessment" : "Next"}
-                  {index === total - 1 ? (
-                    <Icon name="check" size={16} />
-                  ) : (
-                    <Icon name="arrow-right" size={16} />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {stage === "result" ? (
-          <div className="mx-auto w-full max-w-3xl">
-            <div className="mb-8 flex items-start gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-200/70">
-                <Icon name="check" size={22} />
-              </span>
-              <div>
-                <h1 className="text-xl font-bold tracking-[-0.02em] text-ink">
-                  Your Revenue Intelligence assessment
-                </h1>
-                <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                  Here&apos;s what we found. Your agent can go deeper on any of
-                  this inside the chat.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-line bg-surface-muted p-6 text-[0.9375rem] leading-relaxed text-ink md:p-8">
-              <Markdown content={result} />
-            </div>
-            <div className="mt-8 flex justify-center">
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                onClick={() => onDone(result)}
-                className="min-w-52"
-              >
-                Start chatting with your agent
-                <Icon name="arrow-right" size={16} />
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {stage === "error" ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="w-full max-w-md text-center">
-              <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-danger-50 text-danger-600 ring-1 ring-danger-200/70">
-                <Icon name="alert" size={24} />
-              </span>
-              <h1 className="mt-4 text-lg font-bold tracking-[-0.02em] text-ink">
-                We hit a snag
-              </h1>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                {error}
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="md"
-                  onClick={retry}
-                >
-                  <Icon name="refresh" size={16} />
-                  {failedStage === "submit"
-                    ? "Retry assessment"
-                    : "Try again"}
-                </Button>
-              </div>
               <button
                 type="button"
-                onClick={() => onDone()}
+                onClick={goNext}
+                disabled={!canSend}
+                aria-label="Send answer"
                 className={cn(
-                  "mt-4 cursor-pointer text-sm font-semibold text-ink-muted transition-colors hover:text-ink",
+                  "flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                  canSend
+                    ? "cursor-pointer bg-brand-600 text-white hover:bg-brand-700"
+                    : "cursor-not-allowed bg-surface text-ink-faint opacity-60",
                 )}
               >
-                Skip for now and open the dashboard
+                <Icon name="send" size={18} />
               </button>
             </div>
           </div>
-        ) : null}
-      </div>
-    </>
+        </div>
+      ) : null}
+    </div>
   );
 }
