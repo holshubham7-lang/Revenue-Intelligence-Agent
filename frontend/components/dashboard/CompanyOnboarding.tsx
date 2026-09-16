@@ -8,9 +8,7 @@ import { API_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type CompanyOnboardingProps = {
-  companyName?: string;
   onDone: () => void;
-  onLogout: () => void;
 };
 
 type Stage = "loading" | "answering" | "submitting" | "result" | "error";
@@ -18,11 +16,7 @@ type Stage = "loading" | "answering" | "submitting" | "result" | "error";
 const inputBase =
   "w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20";
 
-export function CompanyOnboarding({
-  companyName,
-  onDone,
-  onLogout,
-}: CompanyOnboardingProps) {
+export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   const [stage, setStage] = useState<Stage>("loading");
   const [questions, setQuestions] = useState<string[]>([]);
   const [answers, setAnswers] = useState<string[]>([]);
@@ -163,35 +157,7 @@ export function CompanyOnboarding({
       : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-dvh w-full flex-col bg-surface">
-      <div className="flex items-center justify-between border-b border-line px-6 py-4 md:px-10">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-brand-500 text-white">
-            <Icon name="spark" size={20} />
-          </span>
-          <div className="leading-tight">
-            <p className="text-sm font-bold tracking-[-0.01em] text-ink">
-              Onboarding interview
-            </p>
-            <p className="text-[0.6875rem] font-medium text-ink-faint">
-              {companyName
-                ? `Let's understand ${companyName}`
-                : "Let's understand your business"}
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          onClick={onLogout}
-          className="shrink-0"
-        >
-          <Icon name="logout" size={16} />
-          Log out
-        </Button>
-      </div>
-
+    <>
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
         {stage === "loading" || stage === "submitting" ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -366,13 +332,6 @@ export function CompanyOnboarding({
           </div>
         ) : null}
       </div>
-
-      <div className="border-t border-line px-6 py-4 md:px-10">
-        <p className="text-center text-[0.6875rem] text-ink-faint">
-          Your answers help the Revenue Intelligence Agent tailor its insights
-          to your business. You can update your company profile anytime.
-        </p>
-      </div>
-    </div>
+    </>
   );
 }

@@ -51,7 +51,6 @@ export function DashboardShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [companyReady, setCompanyReady] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [companyName, setCompanyName] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -62,10 +61,8 @@ export function DashboardShell() {
       });
       if (!response.ok) return;
       const company = (await response.json()) as {
-        name?: string;
         onboardingCompleted?: boolean;
       };
-      setCompanyName(company.name ?? "");
       setOnboardingOpen(company.onboardingCompleted !== true);
     } catch {
       setOnboardingOpen(false);
@@ -362,14 +359,6 @@ export function DashboardShell() {
         />
       ) : null}
 
-      {user && companyReady && onboardingOpen ? (
-        <CompanyOnboarding
-          companyName={companyName}
-          onDone={() => setOnboardingOpen(false)}
-          onLogout={handleLogout}
-        />
-      ) : null}
-
       {user ? (
         <DashboardHeader
           user={user}
@@ -520,6 +509,11 @@ export function DashboardShell() {
 
         <main className="flex min-w-0 flex-1 flex-col">
 
+        {user && companyReady && onboardingOpen ? (
+          <CompanyOnboarding
+            onDone={() => setOnboardingOpen(false)}
+          />
+        ) : (
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-4 pb-10 text-center">
@@ -631,10 +625,12 @@ export function DashboardShell() {
             </div>
           )}
         </div>
+        )}
 
         </main>
       </div>
 
+      {!onboardingOpen ? (
       <div className="flex border-t border-line">
         <div className="hidden w-64 shrink-0 border-r border-line bg-surface-muted md:flex md:flex-col md:justify-end">
           {user ? (
@@ -711,6 +707,7 @@ export function DashboardShell() {
           </p>
         </div>
       </div>
+      ) : null}
 
       <DashboardFooter />
     </div>
