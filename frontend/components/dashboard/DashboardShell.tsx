@@ -768,7 +768,7 @@ onDone={(result) => {
       </div>
 
       <div className="flex border-t border-line">
-        <div className="hidden w-64 shrink-0 border-r border-line bg-surface-muted md:flex md:flex-col md:justify-end">
+        <div className="flex w-64 shrink-0 flex-col justify-end border-r border-line bg-surface-muted max-md:hidden">
           {user ? (
             <div className="p-3">
               <div className="rounded-xl bg-brand-50 p-3 ring-1 ring-brand-200/60">
