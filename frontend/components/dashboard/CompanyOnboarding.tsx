@@ -37,6 +37,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
   const [runId, setRunId] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const onDoneRef = useRef(onDone);
@@ -328,9 +329,46 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
       ) : null}
 
       {stage === "answering" && !isTyping ? (
-        <div className="flex border-t border-line bg-surface px-4 py-3 md:px-6">
-          <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
-            <div className="flex min-w-0 flex-1 items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
+        <div className="flex border-t border-line">
+          <div className="hidden w-64 shrink-0 border-r border-line bg-surface-muted md:flex md:flex-col md:justify-end">
+            <div className="p-3">
+              <div className="rounded-xl bg-brand-50 p-3 ring-1 ring-brand-200/60">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
+                    <Icon name="crown" size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">
+                      StratVeda Premium
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      More reports, faster insights
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPremiumOpen((open) => !open)}
+                  aria-expanded={premiumOpen}
+                  className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:bg-brand-800"
+                >
+                  Upgrade to Premium
+                </button>
+                {premiumOpen ? (
+                  <p
+                    role="status"
+                    className="mt-2.5 text-xs leading-relaxed text-ink-muted"
+                  >
+                    Premium billing is coming soon. Your free workspace stays
+                    active until then.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col bg-surface px-4 py-3 md:px-6">
+            <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
               <textarea
                 ref={inputRef}
                 value={draft}
@@ -361,11 +399,11 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
                 <Icon name="send" size={18} />
               </button>
             </div>
+            <p className="mx-auto mt-2 max-w-3xl text-center text-[0.6875rem] text-ink-faint">
+              AI-powered insights help you make better decisions. Verify
+              critical information when needed.
+            </p>
           </div>
-          <p className="mx-auto mt-2 max-w-3xl text-center text-[0.6875rem] text-ink-faint">
-            AI-powered insights help you make better decisions. Verify critical
-            information when needed.
-          </p>
         </div>
       ) : null}
     </div>
