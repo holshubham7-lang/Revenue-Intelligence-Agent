@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
-import { SITE } from "@/lib/constants";
 
 export function DashboardFooter() {
   return (
     <footer className="border-t border-white/10 bg-ink">
       <div className="flex h-12 items-center justify-between gap-4 px-4 md:px-6">
         <div className="flex items-center gap-3 text-xs text-white/60">
-          <span>© {new Date().getFullYear()} {SITE.name}</span>
+          <span>Copyright &copy; {new Date().getFullYear()} StratVeda Technologies Pvt. Ltd. All rights reserved. </span>
           <span className="hidden h-3.5 w-px bg-white/10 sm:block" />
           <span className="hidden rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[0.6875rem] font-medium text-white/50 sm:block">
             v1.0.0

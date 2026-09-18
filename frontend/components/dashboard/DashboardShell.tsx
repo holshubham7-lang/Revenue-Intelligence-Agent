@@ -13,6 +13,15 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { API_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import {
+  createChatSession,
+  deleteChat,
+  formatRelativeTime,
+  loadChatHistory,
+  saveChatHistory,
+  upsertChat,
+  type ChatSession,
+} from "@/lib/chat-history";
 
 type SessionUser = {
   id: string;
@@ -42,18 +51,83 @@ const MAX_HISTORY = 8;
 export function DashboardShell() {
   const router = useRouter();
   const pathname = usePathname();
+  const [history] = useState<ReturnType<typeof loadChatHistory>>(() =>
+    loadChatHistory(),
+  );
   const [user, setUser] = useState<SessionUser | null>(null);
   const [authState, setAuthState] = useState<AuthState>("loading");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const active = history.activeId
+      ? history.sessions.find((s) => s.id === history.activeId)
+      : undefined;
+    return active ? active.messages.map((m) => ({ ...m })) : [];
+  });
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState<"idle" | "thinking" | "typing">("idle");
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [companyReady, setCompanyReady] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [companyName, setCompanyName] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [chats, setChats] = useState<ChatSession[]>(history.sessions);
+  const [activeChatId, setActiveChatId] = useState<string | null>(
+    history.activeId,
+  );
+  const chatsRef = useRef<ChatSession[]>(history.sessions);
+  const activeChatIdRef = useRef<string | null>(history.activeId);
+
+  useEffect(() => {
+    chatsRef.current = chats;
+  }, [chats]);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
+
+  useEffect(() => {
+    if (authState !== "authenticated") return;
+    if (messages.length === 0) return;
+    const timer = window.setTimeout(() => {
+      let nextId = activeChatIdRef.current;
+      let nextChats: ChatSession[];
+      if (nextId) {
+        nextChats = upsertChat(chatsRef.current, nextId, messages);
+      } else {
+        const created = createChatSession(messages);
+        nextChats = [created, ...chatsRef.current];
+        nextId = created.id;
+        activeChatIdRef.current = nextId;
+        setActiveChatId(nextId);
+      }
+      chatsRef.current = nextChats;
+      setChats(nextChats);
+      saveChatHistory({ sessions: nextChats, activeId: nextId });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [messages, authState]);
+
+  function openChat(chatId: string) {
+    const session = chatsRef.current.find((s) => s.id === chatId);
+    if (!session) return;
+    activeChatIdRef.current = chatId;
+    setActiveChatId(chatId);
+    setMessages(session.messages.map((m) => ({ ...m })));
+    setPhase("idle");
+    setSidebarOpen(false);
+  }
+
+  function deleteChatEntry(chatId: string) {
+    const nextChats = deleteChat(chatsRef.current, chatId);
+    chatsRef.current = nextChats;
+    setChats(nextChats);
+    if (activeChatIdRef.current === chatId) {
+      activeChatIdRef.current = null;
+      setActiveChatId(null);
+      setMessages([]);
+    }
+    saveChatHistory({ sessions: nextChats, activeId: activeChatIdRef.current });
+  }
 
   async function checkOnboarding() {
     try {
@@ -62,10 +136,8 @@ export function DashboardShell() {
       });
       if (!response.ok) return;
       const company = (await response.json()) as {
-        name?: string;
         onboardingCompleted?: boolean;
       };
-      setCompanyName(company.name ?? "");
       setOnboardingOpen(company.onboardingCompleted !== true);
     } catch {
       setOnboardingOpen(false);
@@ -291,7 +363,10 @@ export function DashboardShell() {
   }
 
   function startNewChat() {
+    activeChatIdRef.current = null;
+    setActiveChatId(null);
     setMessages([]);
+    setPhase("idle");
     setSidebarOpen(false);
   }
 
@@ -358,14 +433,6 @@ export function DashboardShell() {
         <CompanySetupModal
           userName={user.name}
           onComplete={completeCompanySetup}
-          onLogout={handleLogout}
-        />
-      ) : null}
-
-      {user && companyReady && onboardingOpen ? (
-        <CompanyOnboarding
-          companyName={companyName}
-          onDone={() => setOnboardingOpen(false)}
           onLogout={handleLogout}
         />
       ) : null}
@@ -464,14 +531,55 @@ export function DashboardShell() {
           </nav>
 
           <div className="flex-1 overflow-y-auto px-3">
-            {messages.length > 0 ? (
+            {chats.length > 0 ? (
               <div>
                 <p className="px-1 pb-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                  Current chat
+                  Chats
                 </p>
-                <div className="max-w-full truncate rounded-lg bg-surface px-3 py-2 text-sm text-ink">
-                  {messages[0].content}
-                </div>
+                <ul className="space-y-0.5">
+                  {[...chats]
+                    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                    .map((chat) => {
+                      const active = chat.id === activeChatId;
+                      return (
+                        <li key={chat.id}>
+                          <div
+                            className={cn(
+                              "group flex items-center rounded-lg transition-colors",
+                              active ? "bg-brand-50" : "hover:bg-surface",
+                            )}
+                          >
+                            <button
+                              type="button"
+                              aria-current={active ? "true" : undefined}
+                              onClick={() => openChat(chat.id)}
+                              className={cn(
+                                "flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors",
+                                active
+                                  ? "font-medium text-brand-800"
+                                  : "text-ink-muted hover:text-brand-700",
+                              )}
+                            >
+                              <span className="min-w-0">
+                                <span className="block truncate">{chat.title}</span>
+                                <span className="block truncate text-[0.6875rem] text-ink-faint">
+                                  {formatRelativeTime(chat.updatedAt)}
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Delete chat: ${chat.title}`}
+                              onClick={() => deleteChatEntry(chat.id)}
+                              className="mr-1 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-faint transition-colors opacity-0 hover:bg-surface hover:text-danger-600 focus-visible:opacity-100 group-hover:opacity-100"
+                            >
+                              <Icon name="close" size={14} />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                </ul>
               </div>
             ) : (
               <p className="px-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
@@ -520,6 +628,29 @@ export function DashboardShell() {
 
         <main className="flex min-w-0 flex-1 flex-col">
 
+        {user && companyReady && onboardingOpen ? (
+          <CompanyOnboarding
+onDone={(result) => {
+              setOnboardingOpen(false);
+              if (result) {
+                const created = createChatSession(
+                  [{ role: "assistant", content: result }],
+                  "Revenue Intelligence assessment",
+                );
+                const nextChats = [created, ...chatsRef.current];
+                chatsRef.current = nextChats;
+                setChats(nextChats);
+                activeChatIdRef.current = created.id;
+                setActiveChatId(created.id);
+                setMessages([{ role: "assistant", content: result }]);
+                saveChatHistory({
+                  sessions: nextChats,
+                  activeId: created.id,
+                });
+              }
+            }}
+          />
+        ) : (
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-4 pb-10 text-center">
@@ -631,12 +762,13 @@ export function DashboardShell() {
             </div>
           )}
         </div>
+        )}
 
         </main>
       </div>
 
       <div className="flex border-t border-line">
-        <div className="hidden w-64 shrink-0 border-r border-line bg-surface-muted md:flex md:flex-col md:justify-end">
+        <div className="flex w-64 shrink-0 flex-col justify-end border-r border-line bg-surface-muted max-md:hidden">
           {user ? (
             <div className="p-3">
               <div className="rounded-xl bg-brand-50 p-3 ring-1 ring-brand-200/60">
@@ -675,6 +807,7 @@ export function DashboardShell() {
           ) : null}
         </div>
 
+        {!onboardingOpen ? (
         <div className="flex min-w-0 flex-1 flex-col bg-surface px-4 py-3 md:px-6">
           <div className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-2xl border border-line-strong bg-surface-muted p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20">
             <textarea
@@ -710,6 +843,9 @@ export function DashboardShell() {
             AI-powered insights help you make better decisions. Verify critical information when needed.
           </p>
         </div>
+        ) : (
+        <div id="onboarding-input-slot" className="flex min-w-0 flex-1 flex-col bg-surface px-4 py-3 md:px-6" />
+        )}
       </div>
 
       <DashboardFooter />

@@ -99,7 +99,7 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="container-site flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-white/60">
-            Copyright &copy; 2026 StratVeda Technologies. All rights reserved.
+            Copyright &copy; {new Date().getFullYear()} StratVeda Technologies Pvt. Ltd. All rights reserved.
           </p>
           <p className="text-sm text-white/60">
             Design and Developed By{" "}

@@ -4,6 +4,7 @@ import { AuthGate } from "@/components/auth/AuthGate";
 import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 import { SocialLoginErrorToast } from "@/components/auth/SocialLoginErrorToast";
 import { SignUpForm } from "@/components/auth/SignUpForm";
+import { SITE } from "@/lib/constants";
 import { buildPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = buildPageMetadata("/sign-up", {
@@ -14,7 +15,7 @@ export const metadata: Metadata = buildPageMetadata("/sign-up", {
 export default function SignUpPage() {
   return (
     <AuthGate
-      heading="Start free with StratVeda OS"
+      heading={`Start free with ${SITE.product}`}
       subtitle="Set up your revenue operating view in under 5 minutes. No credit card required."
     >
       <SocialLoginErrorToast />

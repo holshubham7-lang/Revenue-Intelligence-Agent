@@ -72,9 +72,13 @@ export class AdminController {
       this.config.get<string>('COOKIE_SECURE') === 'true' ||
       (this.config.get<string>('COOKIE_SECURE') === undefined &&
         process.env.NODE_ENV === 'production');
+    const sameSiteRaw = (this.config.get<string>('COOKIE_SAMESITE') ?? 'lax').toLowerCase();
+    const sameSite = ['strict', 'lax', 'none'].includes(sameSiteRaw)
+      ? (sameSiteRaw as 'strict' | 'lax' | 'none')
+      : 'lax';
     return {
       httpOnly: true,
-      sameSite: 'lax' as const,
+      sameSite,
       secure,
       path: '/',
       maxAge: Number(this.config.get<string>('ADMIN_SESSION_TTL', '604800')) * 1000,

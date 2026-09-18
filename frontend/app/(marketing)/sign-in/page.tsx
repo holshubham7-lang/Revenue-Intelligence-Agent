@@ -5,6 +5,7 @@ import { SignInForm } from "@/components/auth/SignInForm";
 import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 import { SocialLoginErrorToast } from "@/components/auth/SocialLoginErrorToast";
 import { Icon } from "@/components/ui/Icon";
+import { SITE } from "@/lib/constants";
 import { buildPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = buildPageMetadata("/sign-in", {
@@ -15,7 +16,7 @@ export const metadata: Metadata = buildPageMetadata("/sign-in", {
 export default function SignInPage() {
   return (
     <AuthGate
-      heading="Sign in to StratVeda OS"
+      heading={`Sign in to ${SITE.product}`}
       subtitle="Access your revenue operating view. Use your company identity to continue securely."
     >
       <SocialLoginErrorToast />
