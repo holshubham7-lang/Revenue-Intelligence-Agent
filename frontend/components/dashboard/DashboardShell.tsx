@@ -11,7 +11,7 @@ import { ThinkingIndicator } from "@/components/dashboard/ThinkingIndicator";
 import { Markdown } from "@/components/dashboard/Markdown";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
-import { API_URL } from "@/lib/constants";
+import { API_URL, APP_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import {
   createChatSession,
@@ -191,7 +191,7 @@ export function DashboardShell() {
       });
     } catch {
     } finally {
-      router.replace("/sign-in");
+      window.location.assign(APP_URL);
     }
   }
 

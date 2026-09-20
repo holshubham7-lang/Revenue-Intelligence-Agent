@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   API_URL,
+  APP_URL,
   COMPANY_SIZE_OPTIONS,
   REVENUE_RANGE_OPTIONS,
 } from "@/lib/constants";
@@ -114,8 +115,7 @@ export function CompanyDetails() {
     } catch {
       // proceed to redirect regardless
     }
-    router.replace("/sign-in");
-    router.refresh();
+    window.location.assign(APP_URL);
   }
 
   function startEditing() {
