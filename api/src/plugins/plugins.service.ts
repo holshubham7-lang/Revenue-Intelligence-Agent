@@ -8,6 +8,7 @@ import {
   ConnectionStatus,
 } from './user-plugin.schema.js';
 import { PLUGIN_SEED_DATA } from './plugin-seed.data.js';
+import { AzureCatalogService } from './azure-catalog.service.js';
 import { PluginResponse, UserPluginResponse } from './dto/plugins-response.dto.js';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class PluginsService {
     private readonly pluginModel: Model<PluginDocument>,
     @InjectModel(UserPlugin.name)
     private readonly userPluginModel: Model<UserPluginDocument>,
+    private readonly azureCatalogService: AzureCatalogService,
   ) {}
 
   /** Seeds the catalog collection with the default connector set on startup. */
@@ -41,6 +43,11 @@ export class PluginsService {
   }
 
   async getCatalog(): Promise<PluginResponse[]> {
+    const catalog = await this.azureCatalogService.getConnectors();
+    if (this.azureCatalogService.getLastResult()?.source === 'azure') {
+      return catalog;
+    }
+    // Azure catalog unreachable — fall back to the Mongo catalog (seeded).
     const plugins = await this.pluginModel
       .find({ enabled: true })
       .sort({ sortOrder: 1, name: 1 })
@@ -81,8 +88,9 @@ export class PluginsService {
    * a pending connection record ready for the flow to complete.
    */
   async startConnection(userId: string, slug: string): Promise<void> {
-    const plugin = await this.pluginModel.findOne({ slug, enabled: true }).exec();
-    if (!plugin) {
+    const connectors = await this.azureCatalogService.getConnectors();
+    const connector = connectors.find((c) => c.slug === slug);
+    if (!connector) {
       throw new NotFoundException(`Plugin "${slug}" not found in catalog`);
     }
 
@@ -92,7 +100,7 @@ export class PluginsService {
         {
           $set: {
             status: 'pending',
-            scopes: plugin.scopes ?? [],
+            scopes: connector.scopes ?? [],
             updatedAt: new Date(),
           },
         },

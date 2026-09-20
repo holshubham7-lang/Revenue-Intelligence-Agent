@@ -39,6 +39,10 @@ export class PluginResponse {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  iconUrl?: string;
 }
 
 export class UserPluginResponse {

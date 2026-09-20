@@ -6,6 +6,7 @@ import { Plugin, PluginSchema } from './plugin.schema.js';
 import { UserPlugin, UserPluginSchema } from './user-plugin.schema.js';
 import { PluginsService } from './plugins.service.js';
 import { PluginsController } from './plugins.controller.js';
+import { AzureCatalogService } from './azure-catalog.service.js';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { PluginsController } from './plugins.controller.js';
     AuthModule,
   ],
   controllers: [PluginsController],
-  providers: [PluginsService],
+  providers: [PluginsService, AzureCatalogService],
   exports: [PluginsService],
 })
 export class PluginsModule implements OnModuleInit {
