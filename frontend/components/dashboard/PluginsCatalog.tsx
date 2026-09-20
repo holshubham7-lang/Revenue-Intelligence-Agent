@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -89,6 +89,35 @@ export function PluginsCatalog() {
       );
     });
   }, [plugins, query, filter]);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  const supportsReveal = typeof IntersectionObserver !== "undefined";
+
+  useEffect(() => {
+    const root = gridRef.current;
+    if (!root) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const slug = entry.target.getAttribute("data-slug");
+          if (slug) {
+            setRevealed((prev) =>
+              prev.has(slug) ? prev : new Set(prev).add(slug),
+            );
+          }
+          observer.unobserve(entry.target);
+        }
+      },
+      { rootMargin: "0px 0px -12% 0px", threshold: 0.1 },
+    );
+    root.querySelectorAll<HTMLElement>("[data-reveal]").forEach((card) =>
+      observer.observe(card),
+    );
+    return () => observer.disconnect();
+  }, [visible]);
 
   const connectedCount = plugins.filter((p) => p.connected).length;
 
@@ -266,23 +295,45 @@ export function PluginsCatalog() {
               body={`Nothing matches “${query}” in this category. Try a different search.`}
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map((plugin) => (
-                <PluginCard
-                  key={plugin.slug}
-                  plugin={plugin}
-                  busy={busy === plugin.slug}
-                  onConnect={() => handleConnect(plugin)}
-                  onDisconnect={() => handleDisconnect(plugin)}
-                  onToast={() =>
-                    toast({
-                      title: "Read-only data",
-                      description: `${plugin.name} is only ever read — we never write to your tools.`,
-                      variant: "info",
-                    })
-                  }
-                />
-              ))}
+            <div
+              ref={gridRef}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {visible.map((plugin, index) => {
+                const isRevealed = !supportsReveal || revealed.has(plugin.slug);
+                return (
+                  <article
+                    key={plugin.slug}
+                    data-reveal
+                    data-slug={plugin.slug}
+                    style={
+                      isRevealed
+                        ? undefined
+                        : { transitionDelay: `${Math.min(index, 8) * 40}ms` }
+                    }
+                    className={cn(
+                      "flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                      isRevealed
+                        ? "translate-y-0 opacity-100 motion-reduce:translate-y-0 motion-reduce:opacity-100"
+                        : "translate-y-3 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100",
+                    )}
+                  >
+                    <PluginCardInner
+                      plugin={plugin}
+                      busy={busy === plugin.slug}
+                      onConnect={() => handleConnect(plugin)}
+                      onDisconnect={() => handleDisconnect(plugin)}
+                      onToast={() =>
+                        toast({
+                          title: "Read-only data",
+                          description: `${plugin.name} is only ever read — we never write to your tools.`,
+                          variant: "info",
+                        })
+                      }
+                    />
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
@@ -291,7 +342,7 @@ export function PluginsCatalog() {
   );
 }
 
-function PluginCard({
+function PluginCardInner({
   plugin,
   busy,
   onConnect,
@@ -305,7 +356,7 @@ function PluginCard({
   onToast: () => void;
 }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
+    <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           {plugin.iconUrl ? (
@@ -343,7 +394,10 @@ function PluginCard({
         )}
       </div>
 
-      <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-muted">
+      <p
+        className="mt-3 line-clamp-1 flex-1 text-sm text-ink-muted"
+        title={plugin.description}
+      >
         {plugin.description}
       </p>
 
@@ -377,7 +431,7 @@ function PluginCard({
           </button>
         )}
       </div>
-    </article>
+    </div>
   );
 }
 
