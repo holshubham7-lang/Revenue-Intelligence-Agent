@@ -503,6 +503,12 @@ export function DashboardShell() {
                   match: (p: string) => p.startsWith("/dashboard/company"),
                 },
                 {
+                  href: "/dashboard/plugins",
+                  label: "Plugins",
+                  icon: "plugin" as const,
+                  match: (p: string) => p.startsWith("/dashboard/plugins"),
+                },
+                {
                   href: "/dashboard/account",
                   label: "Account settings",
                   icon: "user" as const,

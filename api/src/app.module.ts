@@ -8,6 +8,7 @@ import { CompaniesModule } from './companies/companies.module.js';
 import { SocialAuthModule } from './social-auth/social-auth.module.js';
 import { VaultModule } from './vault/vault.module.js';
 import { AgentModule } from './agent/agent.module.js';
+import { PluginsModule } from './plugins/plugins.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AgentModule } from './agent/agent.module.js';
     CompaniesModule,
     SocialAuthModule,
     AgentModule,
+    PluginsModule,
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
