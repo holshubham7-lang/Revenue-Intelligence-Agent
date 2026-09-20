@@ -426,6 +426,7 @@ export function DashboardShell() {
   }
 
   const canSend = Boolean(input.trim()) && phase === "idle";
+  const newChatActive = pathname === "/dashboard" && activeChatId === null;
 
   return (
     <div className="flex h-dvh flex-col bg-surface">
@@ -463,15 +464,7 @@ export function DashboardShell() {
               : "-translate-x-full",
           )}
         >
-          <div className="flex items-center justify-between p-3 md:justify-end">
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand-500 hover:text-brand-700"
-            >
-              <Icon name="plus" size={16} />
-              New chat
-            </button>
+          <div className="flex items-center justify-end p-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
@@ -483,14 +476,26 @@ export function DashboardShell() {
           </div>
 
           <nav className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={startNewChat}
+              aria-current={newChatActive ? "true" : undefined}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                newChatActive
+                  ? "bg-brand-50 text-brand-800"
+                  : "text-ink-muted hover:bg-surface hover:text-brand-700",
+              )}
+            >
+              <Icon
+                name="plus"
+                size={18}
+                className={newChatActive ? "text-brand-600" : "text-ink-faint"}
+              />
+              New chat
+            </button>
             {(
               [
-                {
-                  href: "/dashboard",
-                  label: "Dashboard",
-                  icon: "dashboard" as const,
-                  match: (p: string) => p === "/dashboard",
-                },
                 {
                   href: "/dashboard/company",
                   label: "Company",
