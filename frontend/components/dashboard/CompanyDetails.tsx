@@ -1,14 +1,12 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   API_URL,
-  APP_URL,
   COMPANY_SIZE_OPTIONS,
   REVENUE_RANGE_OPTIONS,
 } from "@/lib/constants";
@@ -36,14 +34,11 @@ type SessionUser = {
 type Row = { label: string; value?: string; href?: string };
 
 export function CompanyDetails() {
-  const router = useRouter();
-  const [user, setUser] = useState<SessionUser | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">(
     "loading",
   );
   const [error, setError] = useState("");
-  const [loggingOut, setLoggingOut] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -74,7 +69,6 @@ export function CompanyDetails() {
         }
         const me = (await meRes.json()) as SessionUser;
         if (cancelled) return;
-        setUser(me);
 
         if (!me.hasCompany && !me.companyId) {
           setStatus("empty");
@@ -104,19 +98,6 @@ export function CompanyDetails() {
       cancelled = true;
     };
   }, []);
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await fetch(`${API_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // proceed to redirect regardless
-    }
-    window.location.assign(APP_URL);
-  }
 
   function startEditing() {
     if (!company) return;
@@ -251,39 +232,7 @@ export function CompanyDetails() {
   ];
 
   return (
-    <main className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex items-center justify-between border-b border-line px-6 py-4 md:px-10">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-surface text-ink transition-colors hover:border-brand-500 hover:text-brand-700"
-            aria-label="Back to dashboard"
-          >
-            <Icon name="arrow-left" size={18} />
-          </button>
-          <div className="leading-tight">
-            <p className="text-sm font-bold tracking-[-0.01em] text-ink">
-              Company details
-            </p>
-            <p className="text-[0.6875rem] font-medium text-ink-faint">
-              {user?.email ?? "Your workspace"}
-            </p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="shrink-0"
-        >
-          <Icon name="logout" size={16} />
-          {loggingOut ? "Logging out…" : "Log out"}
-        </Button>
-      </header>
-
+    <DashboardLayout>
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
         <div className="mx-auto w-full max-w-3xl">
           <div className="mb-6 flex items-start gap-3">
@@ -576,8 +525,6 @@ export function CompanyDetails() {
           ) : null}
         </div>
       </div>
-
-      <DashboardFooter />
-    </main>
+    </DashboardLayout>
   );
 }

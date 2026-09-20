@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/ToastProvider";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { API_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ type Plugin = {
   brandColor?: string;
   source: "builtin" | "foundry";
   authType?: string;
+  iconUrl?: string;
   connected: boolean;
 };
 
@@ -169,9 +171,8 @@ export function PluginsCatalog() {
 
   if (status !== "ready") {
     return (
-      <main className="flex min-h-dvh flex-col bg-surface">
-        <PageHeader title="Plugins" />
-        <div className="flex-1 px-6 py-8 md:px-10">
+      <DashboardLayout>
+        <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
           <div className="mx-auto w-full max-w-5xl">
             {status === "loading" && <CatalogSkeleton />}
             {status === "unauthenticated" && (
@@ -190,14 +191,12 @@ export function PluginsCatalog() {
             )}
           </div>
         </div>
-      </main>
+      </DashboardLayout>
     );
   }
 
   return (
-    <main className="flex min-h-dvh flex-col bg-surface">
-      <PageHeader title="Plugins" />
-
+    <DashboardLayout>
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
         <div className="mx-auto w-full max-w-5xl">
           <div className="mb-6 flex items-start gap-3">
@@ -288,28 +287,7 @@ export function PluginsCatalog() {
           )}
         </div>
       </div>
-    </main>
-  );
-}
-
-function PageHeader({ title }: { title: string }) {
-  const router = useRouter();
-  return (
-    <header className="flex items-center justify-between border-b border-line px-6 py-4 md:px-10">
-      <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-surface text-ink transition-colors hover:border-brand-500 hover:text-brand-700"
-          aria-label="Back to dashboard"
-        >
-          <Icon name="arrow-left" size={18} />
-        </button>
-        <div className="leading-tight">
-          <p className="text-sm font-bold tracking-[-0.01em] text-ink">{title}</p>
-        </div>
-      </div>
-    </header>
+    </DashboardLayout>
   );
 }
 
@@ -330,12 +308,23 @@ function PluginCard({
     <article className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-[-0.01em] text-white"
-            style={{ backgroundColor: plugin.brandColor ?? "#34744e" }}
-          >
-            {plugin.mark ?? plugin.name.slice(0, 2).toUpperCase()}
-          </span>
+          {plugin.iconUrl ? (
+            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1 ring-line">
+              <img
+                src={plugin.iconUrl}
+                alt=""
+                className="h-full w-full object-contain"
+                loading="lazy"
+              />
+            </span>
+          ) : (
+            <span
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold tracking-[-0.01em] text-white"
+              style={{ backgroundColor: plugin.brandColor ?? "#34744e" }}
+            >
+              {plugin.mark ?? plugin.name.slice(0, 2).toUpperCase()}
+            </span>
+          )}
           <div className="leading-tight">
             <h3 className="text-[0.9375rem] font-bold tracking-[-0.01em] text-ink">
               {plugin.name}

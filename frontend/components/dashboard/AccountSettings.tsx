@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { DashboardFooter } from "@/components/dashboard/DashboardFooter";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Icon } from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/ToastProvider";
 import { API_URL } from "@/lib/constants";
@@ -47,7 +46,6 @@ function formatDate(value?: string): string {
 }
 
 export function AccountSettings() {
-  const router = useRouter();
   const { toast } = useToast();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [status, setStatus] = useState<
@@ -218,7 +216,7 @@ export function AccountSettings() {
 
   if (status === "loading") {
     return (
-      <main className="flex min-h-dvh flex-col bg-surface">
+      <DashboardLayout>
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <Icon
@@ -229,13 +227,13 @@ export function AccountSettings() {
             <p className="text-sm text-ink-muted">Loading your account…</p>
           </div>
         </div>
-      </main>
+      </DashboardLayout>
     );
   }
 
   if (status === "unauthenticated") {
     return (
-      <main className="flex min-h-dvh flex-col bg-surface">
+      <DashboardLayout>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-6 text-center">
             <Icon name="lock" size={26} className="mx-auto text-brand-600" />
@@ -255,44 +253,26 @@ export function AccountSettings() {
             </Button>
           </div>
         </div>
-      </main>
+      </DashboardLayout>
     );
   }
 
   if (status === "error" || !user) {
     return (
-      <main className="flex min-h-dvh flex-col bg-surface">
+      <DashboardLayout>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="rounded-2xl border border-danger-300 bg-danger-50 px-4 py-6 text-center">
             <p className="text-sm text-danger-700">{error}</p>
           </div>
         </div>
-      </main>
+      </DashboardLayout>
     );
   }
 
   const canChangePassword = user.authProvider === "email";
 
   return (
-    <main className="flex min-h-dvh flex-col bg-surface">
-      <header className="flex items-center justify-between border-b border-line px-6 py-4 md:px-10">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-xl border border-line-strong bg-surface text-ink transition-colors hover:border-brand-500 hover:text-brand-700"
-            aria-label="Back to dashboard"
-          >
-            <Icon name="arrow-left" size={18} />
-          </button>
-          <div className="leading-tight">
-            <p className="text-sm font-bold tracking-[-0.01em] text-ink">
-              Account settings
-            </p>
-          </div>
-        </div>
-      </header>
-
+    <DashboardLayout>
       <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10">
         <div className="mx-auto w-full max-w-3xl space-y-6">
           <div className="mb-6 flex items-start gap-3">
@@ -483,8 +463,6 @@ export function AccountSettings() {
           </section>
         </div>
       </div>
-
-      <DashboardFooter />
-    </main>
+    </DashboardLayout>
   );
 }
