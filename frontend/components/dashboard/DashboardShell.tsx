@@ -635,11 +635,18 @@ export function DashboardShell() {
 
         {user && companyReady && onboardingOpen ? (
           <CompanyOnboarding
-onDone={(result) => {
+onDone={(result, conversation) => {
               setOnboardingOpen(false);
               if (result) {
+                const chatMessages = (conversation?.length
+                  ? conversation
+                  : [{ role: "assistant", content: result }]
+                ).map((m) => ({
+                  role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+                  content: m.content,
+                }));
                 const created = createChatSession(
-                  [{ role: "assistant", content: result }],
+                  chatMessages,
                   "Revenue Intelligence assessment",
                 );
                 const nextChats = [created, ...chatsRef.current];
@@ -647,7 +654,7 @@ onDone={(result) => {
                 setChats(nextChats);
                 activeChatIdRef.current = created.id;
                 setActiveChatId(created.id);
-                setMessages([{ role: "assistant", content: result }]);
+                setMessages(chatMessages);
                 saveChatHistory({
                   sessions: nextChats,
                   activeId: created.id,

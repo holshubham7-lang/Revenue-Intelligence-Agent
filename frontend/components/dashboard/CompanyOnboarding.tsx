@@ -5,11 +5,12 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Markdown } from "@/components/dashboard/Markdown";
+import { AgentProcessing } from "@/components/dashboard/AgentProcessing";
 import { API_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type CompanyOnboardingProps = {
-  onDone: (result?: string) => void;
+  onDone: (result?: string, conversation?: Message[]) => void;
 };
 
 type Stage = "loading" | "answering" | "submitting" | "result" | "error";
@@ -118,6 +119,14 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
       behavior: "smooth",
     });
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    if (stage !== "result") return;
+    const timer = window.setTimeout(() => {
+      onDoneRef.current(result, messages);
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [stage, result, messages]);
 
   function retry() {
     setError("");
@@ -257,21 +266,7 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
             </div>
           ) : null}
 
-          {isTyping && stage === "submitting" ? (
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-brand-200/60">
-                <Icon name="spark" size={16} />
-              </span>
-              <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-line bg-surface-muted px-4 py-3 text-sm text-ink-muted">
-                <Icon
-                  name="spark"
-                  size={16}
-                  className="animate-pulse-soft text-brand-600"
-                />
-                Analyzing your answers…
-              </div>
-            </div>
-          ) : null}
+          {isTyping && stage === "submitting" ? <AgentProcessing /> : null}
 
           {stage === "error" ? (
             <>
@@ -310,23 +305,6 @@ export function CompanyOnboarding({ onDone }: CompanyOnboardingProps) {
           ) : null}
         </div>
       </div>
-
-      {stage === "result" ? (
-        <div className="border-t border-line bg-surface px-4 py-4 md:px-6">
-          <div className="mx-auto flex max-w-3xl justify-center">
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              onClick={() => onDone(result)}
-              className="min-w-52"
-            >
-              Start chatting with your agent
-              <Icon name="arrow-right" size={16} />
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       {stage === "answering" && !isTyping
         ? createPortal(
