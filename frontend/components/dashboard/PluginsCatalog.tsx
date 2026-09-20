@@ -394,10 +394,7 @@ function PluginCardInner({
         )}
       </div>
 
-      <p
-        className="mt-3 line-clamp-1 flex-1 text-sm text-ink-muted"
-        title={plugin.description}
-      >
+      <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-muted">
         {plugin.description}
       </p>
 
