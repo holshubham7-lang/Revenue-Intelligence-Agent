@@ -28,9 +28,8 @@ export const LEGAL = [
 export const API_URL: string =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3010";
 
-/** Public frontend base URL used for post-logout redirect. */
-export const APP_URL: string =
-  process.env.NEXT_PUBLIC_FRONTEND_URL ?? "https://revops-frontend-dev.azurewebsites.net";
+/** Optional public frontend base URL for post-logout redirect; falls back to the current origin. */
+export const APP_URL: string = process.env.NEXT_PUBLIC_FRONTEND_URL ?? "";
 
 /** Company size options for the company-setup flow. */
 export const COMPANY_SIZE_OPTIONS = [

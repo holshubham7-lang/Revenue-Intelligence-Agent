@@ -162,7 +162,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     } catch {
       // proceed to redirect regardless
     } finally {
-      window.location.assign(APP_URL);
+      window.location.assign(APP_URL || window.location.origin);
     }
   }, []);
 
