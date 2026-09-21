@@ -112,7 +112,7 @@ export class AzureConnectionService {
       location: this.location,
       properties: {
         api: {
-          id: `${ARM}/subscriptions/${sub}/providers/Microsoft.Web/locations/${this.location}/managedApis/${connectorName}`,
+          id: `/subscriptions/${sub}/providers/Microsoft.Web/locations/${this.location}/managedApis/${connectorName}`,
         },
       },
     };
