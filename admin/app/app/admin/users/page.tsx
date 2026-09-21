@@ -72,6 +72,25 @@ function SortHeader({
   );
 }
 
+function AvatarCell({ user }: { user: AdminUser }) {
+  if (user.profileImage) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={user.profileImage}
+        alt={`${user.name} avatar`}
+        className="h-9 w-9 rounded-full border border-line bg-surface-soft object-cover"
+      />
+    );
+  }
+  const initial = (user.name || "?").trim().charAt(0).toUpperCase();
+  return (
+    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface-soft text-[0.75rem] font-semibold text-ink-muted">
+      {initial}
+    </span>
+  );
+}
+
 function UserCell({ user }: { user: AdminUser }) {
   return (
     <Link href={`/admin/users/${user.id}`} className="block">
@@ -307,10 +326,13 @@ export default function UsersPage() {
 
       <div className="card mt-4 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] border-collapse text-left">
+          <table className="w-full min-w-[920px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-surface-muted">
                 <SortHeader label="User" field="name" sortBy={filters.sortBy} sortDir={filters.sortDir} onSort={sortBy} />
+                <th className="px-4 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                  Image
+                </th>
                 <SortHeader label="Provider" field="authProvider" sortBy={filters.sortBy} sortDir={filters.sortDir} onSort={sortBy} />
                 <th className="px-4 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">
                   Status
@@ -329,6 +351,9 @@ export default function UsersPage() {
                         <div className="h-3.5 w-40 animate-pulse rounded bg-surface-soft" />
                         <div className="mt-1.5 h-3 w-56 animate-pulse rounded bg-surface-soft" />
                       </td>
+                      <td className="px-4 py-3">
+                        <div className="h-9 w-9 animate-pulse rounded-full bg-surface-soft" />
+                      </td>
                       {[0, 1, 2].map((c) => (
                         <td key={c} className="px-4 py-3">
                           <div className="h-3.5 w-16 animate-pulse rounded bg-surface-soft" />
@@ -346,6 +371,9 @@ export default function UsersPage() {
                     >
                       <td className="px-4 py-3">
                         <UserCell user={user} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <AvatarCell user={user} />
                       </td>
                       <td className="px-4 py-3">
                         <ProviderBadge provider={user.authProvider} />
@@ -369,7 +397,7 @@ export default function UsersPage() {
                   ))}
               {!loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center">
+                  <td colSpan={6} className="px-4 py-12 text-center">
                     <Icon name="users" size={28} className="mx-auto text-ink-faint" />
                     <p className="mt-2 text-sm font-medium text-ink-muted">
                       No users match these filters.
