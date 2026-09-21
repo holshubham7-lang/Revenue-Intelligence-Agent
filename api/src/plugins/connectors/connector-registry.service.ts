@@ -12,6 +12,7 @@ export class ConnectorRegistry {
 
   constructor(hubspot: HubSpotAdapter) {
     this.register('hubspotcrm', hubspot);
+    this.register('hubspotmarketing', hubspot);
   }
 
   private register(slug: string, adapter: ConnectorAdapter): void {
