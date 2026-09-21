@@ -54,17 +54,31 @@ export class UserPluginResponse {
 
   @IsOptional()
   @IsString()
+  connectorName?: string;
+
+  @IsOptional()
+  @IsString()
+  azureConnectionName?: string;
+
+  @IsOptional()
+  @IsString()
+  azureConnectionId?: string;
+
+  @IsOptional()
+  @IsString()
+  azureResourceGroup?: string;
+
+  @IsOptional()
+  @IsString()
   accountName?: string;
 
   @IsOptional()
-  @IsString()
+  @IsString({ each: true })
   scopes?: string[];
 
   @IsOptional()
-  @IsString()
   connectedAt?: Date;
 
   @IsOptional()
-  @IsString()
   lastSyncAt?: Date;
 }

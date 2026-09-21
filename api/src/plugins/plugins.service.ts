@@ -9,7 +9,19 @@ import {
 } from './user-plugin.schema.js';
 import { PLUGIN_SEED_DATA } from './plugin-seed.data.js';
 import { AzureCatalogService } from './azure-catalog.service.js';
+import { AzureConnectionService } from './azure-connection.service.js';
 import { PluginResponse, UserPluginResponse } from './dto/plugins-response.dto.js';
+
+export interface StartConnectionResult {
+  authUrl: string;
+  status: ConnectionStatus;
+  connectionName: string;
+}
+
+export interface CompleteConnectionResult {
+  pluginSlug?: string;
+  status: ConnectionStatus;
+}
 
 @Injectable()
 export class PluginsService {
@@ -21,6 +33,7 @@ export class PluginsService {
     @InjectModel(UserPlugin.name)
     private readonly userPluginModel: Model<UserPluginDocument>,
     private readonly azureCatalogService: AzureCatalogService,
+    private readonly azureConnectionService: AzureConnectionService,
   ) {}
 
   /** Seeds the catalog collection with the default connector set on startup. */
@@ -65,6 +78,10 @@ export class PluginsService {
     return connections.map((c) => ({
       pluginSlug: c.pluginSlug,
       status: c.status as ConnectionStatus,
+      connectorName: c.connectorName,
+      azureConnectionName: c.azureConnectionName,
+      azureConnectionId: c.azureConnectionId,
+      azureResourceGroup: c.azureResourceGroup,
       accountName: c.accountName,
       scopes: c.scopes,
       connectedAt: c.connectedAt,
@@ -83,16 +100,32 @@ export class PluginsService {
   }
 
   /**
-   * Records an intent to connect a plugin. Because the actual OAuth handoff
-   * is implemented by the per-connector adapters, this creates (or updates)
-   * a pending connection record ready for the flow to complete.
+   * Provisions an Azure connection for the connector and returns the consent
+   * URL the browser must visit. Azure performs the OAuth handshake and owns the
+   * resulting tokens; we persist the connection reference and status.
    */
-  async startConnection(userId: string, slug: string): Promise<void> {
+  async startConnection(
+    userId: string,
+    slug: string,
+  ): Promise<StartConnectionResult> {
     const connectors = await this.azureCatalogService.getConnectors();
     const connector = connectors.find((c) => c.slug === slug);
     if (!connector) {
       throw new NotFoundException(`Plugin "${slug}" not found in catalog`);
     }
+
+    const connectionName = this.buildConnectionName(slug, userId);
+    await this.azureConnectionService.createConnection(slug, connectionName);
+
+    const callbackBase =
+      process.env.CALLBACK_BASE ?? 'http://localhost:3010';
+    const redirectUrl = `${callbackBase}/plugins/callback?c=${encodeURIComponent(
+      connectionName,
+    )}`;
+    const authUrl = await this.azureConnectionService.getConsentLink(
+      connectionName,
+      redirectUrl,
+    );
 
     await this.userPluginModel
       .updateOne(
@@ -100,22 +133,93 @@ export class PluginsService {
         {
           $set: {
             status: 'pending',
+            connectorName: slug,
+            azureConnectionName: connectionName,
+            azureResourceGroup: process.env.AZURE_CONNECTIONS_RESOURCE_GROUP ?? 'stratvedaos_group',
             scopes: connector.scopes ?? [],
             updatedAt: new Date(),
           },
+          $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true },
       )
       .exec();
+
+    return { authUrl, status: 'pending', connectionName };
+  }
+
+  /**
+   * Finalizes a connection after the user completes Azure consent. Reads the
+   * authenticated connection state and persists the resulting details.
+   */
+  async completeConnection(
+    connectionName: string,
+  ): Promise<CompleteConnectionResult> {
+    const row = await this.userPluginModel
+      .findOne({ azureConnectionName: connectionName })
+      .exec();
+    if (!row) {
+      return { status: 'error' };
+    }
+
+    const details =
+      await this.azureConnectionService.getConnection(connectionName);
+    const connected =
+      (details.overallStatus ?? '').toLowerCase() === 'connected';
+
+    await this.userPluginModel
+      .updateOne(
+        { _id: row._id },
+        {
+          $set: {
+            status: connected ? 'connected' : 'error',
+            accountName:
+              details.displayName ?? details.authenticatedUser ?? row.accountName,
+            azureConnectionId: details.connectionId,
+            connectedAt: connected ? new Date() : row.connectedAt,
+            metadata: {
+              overallStatus: details.overallStatus,
+              authenticatedUser: details.authenticatedUser,
+              statuses: details.statuses,
+            },
+            updatedAt: new Date(),
+          },
+        },
+      )
+      .exec();
+
+    return { pluginSlug: row.pluginSlug, status: connected ? 'connected' : 'error' };
   }
 
   async disconnect(userId: string, slug: string): Promise<void> {
+    const row = await this.userPluginModel
+      .findOne({ userId, pluginSlug: slug })
+      .exec();
+    if (row?.azureConnectionName) {
+      await this.azureConnectionService.deleteConnection(
+        row.azureConnectionName,
+      );
+    }
     await this.userPluginModel
       .updateOne(
         { userId, pluginSlug: slug },
-        { $set: { status: 'disconnected', updatedAt: new Date() } },
+        {
+          $set: {
+            status: 'disconnected',
+            azureConnectionId: undefined,
+            metadata: undefined,
+            updatedAt: new Date(),
+          },
+        },
       )
       .exec();
+  }
+
+  /** Azure connection names must be unique per resource group. */
+  private buildConnectionName(slug: string, userId: string): string {
+    const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40);
+    const suffix = userId.replace(/[^a-zA-Z0-9]/g, '').slice(-10) || Date.now().toString(36);
+    return `revops-${safeSlug}-${suffix}`;
   }
 
   private toPluginResponse(plugin: PluginDocument | Record<string, unknown>): PluginResponse {
