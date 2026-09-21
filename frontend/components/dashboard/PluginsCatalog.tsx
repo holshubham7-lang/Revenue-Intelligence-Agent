@@ -161,9 +161,13 @@ export function PluginsCatalog() {
         return;
       }
       if (!response.ok) {
+        const detail = (await response.json().catch(() => ({}))) as {
+          message?: string;
+        };
         toast({
           title: "Could not connect",
-          description: "Please try again in a moment.",
+          description:
+            detail.message ?? "Please try again in a moment.",
           variant: "error",
         });
         return;

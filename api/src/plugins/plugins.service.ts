@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Plugin, PluginDocument } from './plugin.schema.js';
@@ -115,17 +120,25 @@ export class PluginsService {
     }
 
     const connectionName = this.buildConnectionName(slug, userId);
-    await this.azureConnectionService.createConnection(slug, connectionName);
-
-    const callbackBase =
-      process.env.CALLBACK_BASE ?? 'http://localhost:3010';
+    const callbackBase = process.env.CALLBACK_BASE ?? 'http://localhost:3010';
     const redirectUrl = `${callbackBase}/plugins/callback?c=${encodeURIComponent(
       connectionName,
     )}`;
-    const authUrl = await this.azureConnectionService.getConsentLink(
-      connectionName,
-      redirectUrl,
-    );
+
+    let authUrl: string;
+    try {
+      await this.azureConnectionService.createConnection(slug, connectionName);
+      authUrl = await this.azureConnectionService.getConsentLink(
+        connectionName,
+        redirectUrl,
+      );
+    } catch (error) {
+      const message = (error as Error).message;
+      this.logger.error(`Failed to start connection for "${slug}": ${message}`);
+      throw new BadGatewayException(
+        `Unable to start the connection with ${connector.name}. ${message}`,
+      );
+    }
 
     await this.userPluginModel
       .updateOne(
@@ -139,7 +152,6 @@ export class PluginsService {
             scopes: connector.scopes ?? [],
             updatedAt: new Date(),
           },
-          $setOnInsert: { createdAt: new Date() },
         },
         { upsert: true },
       )
