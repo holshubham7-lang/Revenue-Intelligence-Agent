@@ -1,9 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import type { HydratedDocument } from 'mongoose';
+import { SchemaTypes, type HydratedDocument } from 'mongoose';
 
 export type UserPluginDocument = HydratedDocument<UserPlugin>;
 
-export type ConnectionStatus = 'connected' | 'pending' | 'error' | 'expired';
+export type ConnectionStatus =
+  | 'connected'
+  | 'pending'
+  | 'error'
+  | 'expired'
+  | 'disconnected';
 
 @Schema({
   collection: 'user_plugins',
@@ -21,10 +26,34 @@ export class UserPlugin {
 
   @Prop({
     type: String,
-    enum: ['connected', 'pending', 'error', 'expired'],
+    enum: ['connected', 'pending', 'error', 'expired', 'disconnected'],
     default: 'pending',
   })
   status!: ConnectionStatus;
+
+  /** Connector identifier in the Azure managedApis catalog (e.g. hubspotcrm). */
+  @Prop({ type: String })
+  connectorName?: string;
+
+  /** Name of the Microsoft.Web/connections resource in Azure. */
+  @Prop({ type: String, index: true })
+  azureConnectionName?: string;
+
+  /** Azure connection id returned after consent completes. */
+  @Prop({ type: String })
+  azureConnectionId?: string;
+
+  /** Full ARM resource id of the Azure connection. */
+  @Prop({ type: String })
+  azureResourceId?: string;
+
+  /** Resource group holding the Azure connection. */
+  @Prop({ type: String })
+  azureResourceGroup?: string;
+
+  /** Raw status/details snapshot from the Azure connection. */
+  @Prop({ type: SchemaTypes.Mixed })
+  metadata?: Record<string, unknown>;
 
   /** Encrypted access token blob (iv | data | tag). */
   @Prop({ type: String })

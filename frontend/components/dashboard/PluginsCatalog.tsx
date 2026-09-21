@@ -78,6 +78,30 @@ export function PluginsCatalog() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const failed = params.get("error");
+    if (!connected && !failed) return;
+    if (connected) {
+      toast({
+        title: "Connected",
+        description: `${connected} is now linked to your workspace.`,
+      });
+    } else if (failed) {
+      toast({
+        title: "Connection failed",
+        description: `Could not connect ${failed}. Please try again.`,
+        variant: "error",
+      });
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("connected");
+    url.searchParams.delete("error");
+    window.history.replaceState({}, "", url.toString());
+  }, [toast]);
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return plugins.filter((plugin) => {
@@ -136,14 +160,6 @@ export function PluginsCatalog() {
         });
         return;
       }
-      if (response.status === 501) {
-        toast({
-          title: "Coming soon",
-          description: "The OAuth handoff for this connector is being built.",
-          variant: "info",
-        });
-        return;
-      }
       if (!response.ok) {
         toast({
           title: "Could not connect",
@@ -152,9 +168,18 @@ export function PluginsCatalog() {
         });
         return;
       }
+      const data = (await response.json().catch(() => ({}))) as {
+        authUrl?: string;
+      };
+      if (data.authUrl) {
+        // Hand off to the Azure-hosted consent screen.
+        window.location.assign(data.authUrl);
+        return;
+      }
       toast({
-        title: "Connection started",
-        description: `${plugin.name} will be connected shortly.`,
+        title: "Could not connect",
+        description: "No authorization link was returned.",
+        variant: "error",
       });
     } catch {
       toast({
