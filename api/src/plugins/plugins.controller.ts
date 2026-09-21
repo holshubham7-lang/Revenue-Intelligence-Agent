@@ -97,3 +97,51 @@ export class PluginsCallbackController {
     }
   }
 }
+
+/**
+ * Public callback for Path B (adapter) OAuth flows. The provider redirects here
+ * after the user authorizes; the pending row is correlated via the opaque
+ * `state` value we generated when the connection started.
+ */
+@Controller('plugins')
+export class PluginsOAuthController {
+  constructor(private readonly pluginsService: PluginsService) {}
+
+  @Get('oauth/callback')
+  async callback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
+    @Query('error_description') errorDescription: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const frontend = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    try {
+      if (error) {
+        throw new Error(errorDescription || error);
+      }
+      if (!code || !state) {
+        throw new Error('Missing OAuth code or state');
+      }
+      const result = await this.pluginsService.completeOAuthConnection(
+        state,
+        code,
+      );
+      if (result.status === 'connected' && result.pluginSlug) {
+        response.redirect(
+          `${frontend}/dashboard/plugins?connected=${encodeURIComponent(
+            result.pluginSlug,
+          )}`,
+        );
+        return;
+      }
+      response.redirect(
+        `${frontend}/dashboard/plugins?error=${encodeURIComponent(
+          result.pluginSlug ?? 'connection_failed',
+        )}`,
+      );
+    } catch {
+      response.redirect(`${frontend}/dashboard/plugins?error=connection_failed`);
+    }
+  }
+}

@@ -35,6 +35,14 @@ export class UserPlugin {
   @Prop({ type: String })
   connectorName?: string;
 
+  /** How the handshake is performed: Azure managed connector or our adapter. */
+  @Prop({ type: String, enum: ['azure', 'adapter'], default: 'azure' })
+  authMode?: 'azure' | 'adapter';
+
+  /** Opaque OAuth state for the adapter (Path B) flow, used to correlate callbacks. */
+  @Prop({ type: String, index: true })
+  oauthState?: string;
+
   /** Name of the Microsoft.Web/connections resource in Azure. */
   @Prop({ type: String, index: true })
   azureConnectionName?: string;
