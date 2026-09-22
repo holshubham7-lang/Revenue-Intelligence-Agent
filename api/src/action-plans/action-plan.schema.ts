@@ -27,13 +27,14 @@ export class ActionPlan {
   summary?: string;
 
   @Prop({
+    type: String,
     required: true,
     default: 'draft',
     index: true,
   })
   status!: ActionPlanStatus;
 
-  @Prop({ required: true, default: 'medium' })
+  @Prop({ type: String, required: true, default: 'medium' })
   priority!: PriorityLevel;
 
   @Prop({ type: String })

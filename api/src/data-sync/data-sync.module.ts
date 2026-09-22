@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { PluginsModule } from '../plugins/plugins.module.js';
 import { PluginConnectionsModule } from '../plugin-connections/plugin-connections.module.js';
@@ -18,6 +19,7 @@ import { DataSyncController } from './data-sync.controller.js';
   imports: [
     MongooseModule.forFeature([
       { name: DataSyncRun.name, schema: DataSyncSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,

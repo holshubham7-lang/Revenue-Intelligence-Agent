@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
+import { PluginConnectionsModule } from '../plugin-connections/plugin-connections.module.js';
 import {
   RevenueEntity,
   RevenueEntitySchema,
@@ -18,9 +20,11 @@ import { SnapshotsController } from './snapshots.controller.js';
     MongooseModule.forFeature([
       { name: RevenueSnapshot.name, schema: RevenueSnapshotSchema },
       { name: RevenueEntity.name, schema: RevenueEntitySchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,
+    PluginConnectionsModule,
   ],
   controllers: [SnapshotsController],
   providers: [SnapshotsService],

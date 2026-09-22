@@ -39,7 +39,7 @@ export class RevenueChange {
   @Prop({ required: true })
   snapshotSeq!: number;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   diffType!: RevenueChangeType;
 
   @Prop({ type: String })
@@ -66,7 +66,7 @@ export class RevenueChange {
   @Prop({ type: String })
   newStage?: string;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   severity!: SeverityLevel;
 
   @Prop({ type: String })

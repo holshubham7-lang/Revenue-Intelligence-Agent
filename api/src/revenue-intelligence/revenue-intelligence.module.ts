@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { AgentModule } from '../agent/agent.module.js';
 import { PluginConnectionsModule } from '../plugin-connections/plugin-connections.module.js';
@@ -18,6 +19,7 @@ import { RevenueIntelligenceController } from './revenue-intelligence.controller
   imports: [
     MongooseModule.forFeature([
       { name: RevenueFinding.name, schema: RevenueFindingSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,

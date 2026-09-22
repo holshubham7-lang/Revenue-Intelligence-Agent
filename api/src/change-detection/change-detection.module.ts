@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { PluginConnectionsModule } from '../plugin-connections/plugin-connections.module.js';
 import { SnapshotsModule } from '../snapshots/snapshots.module.js';
@@ -15,6 +16,7 @@ import { ChangeDetectionController } from './change-detection.controller.js';
   imports: [
     MongooseModule.forFeature([
       { name: RevenueChange.name, schema: RevenueChangeSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,
