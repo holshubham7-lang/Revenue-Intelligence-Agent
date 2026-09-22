@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { EncryptionModule } from '../encryption/encryption.module.js';
 import { AuditModule } from '../audit/audit.module.js';
@@ -13,6 +15,7 @@ import { ConnectorRuntimeController } from './connector-runtime.controller.js';
 
 @Module({
   imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     AuthModule,
     WorkspacesModule,
     EncryptionModule,
@@ -27,6 +30,6 @@ import { ConnectorRuntimeController } from './connector-runtime.controller.js';
     ConnectorAdapterService,
     ConnectorRuntimeService,
   ],
-  exports: [ConnectorRuntimeService, ConnectorAdapterService],
+  exports: [ConnectorRuntimeService, ConnectorAdapterService, AzureConnectionService],
 })
 export class ConnectorRuntimeModule {}

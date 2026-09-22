@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import { EncryptionModule } from '../encryption/encryption.module.js';
 import { AuditModule } from '../audit/audit.module.js';
@@ -19,6 +20,7 @@ import { PluginConnectionsController } from './plugin-connections.controller.js'
     MongooseModule.forFeature([
       { name: PluginConnection.name, schema: PluginConnectionSchema },
       { name: UserPlugin.name, schema: UserPluginSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,

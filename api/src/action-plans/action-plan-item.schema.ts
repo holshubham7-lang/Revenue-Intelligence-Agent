@@ -31,10 +31,10 @@ export class ActionPlanItem {
   @Prop({ type: String })
   description?: string;
 
-  @Prop({ required: true, default: 'open', index: true })
+  @Prop({ type: String, required: true, default: 'open', index: true })
   status!: ActionPlanStatus;
 
-  @Prop({ required: true, default: 'medium' })
+  @Prop({ type: String, required: true, default: 'medium' })
   priority!: PriorityLevel;
 
   @Prop({ type: Date })

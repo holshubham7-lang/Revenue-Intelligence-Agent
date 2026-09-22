@@ -41,7 +41,7 @@ export class RevenueFinding {
   @Prop({ type: String })
   summary?: string;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   severity!: FindingSeverity;
 
   @Prop({ type: String })

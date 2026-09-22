@@ -24,13 +24,13 @@ export class DataSyncRun {
   @Prop({ required: true })
   connectorSlug!: string;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   kind!: DataSyncKind;
 
-  @Prop({ required: true })
+  @Prop({ type: String, required: true })
   trigger!: DataSyncTrigger;
 
-  @Prop({ required: true, default: 'running' })
+  @Prop({ type: String, required: true, default: 'running' })
   status!: DataSyncStatus;
 
   @Prop({ type: Date })

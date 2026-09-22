@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuditModule } from '../audit/audit.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { User, UserSchema } from '../users/user.schema.js';
 import { WorkspacesModule } from '../workspaces/workspaces.module.js';
 import {
   PluginConsent,
@@ -14,6 +15,7 @@ import { PluginConsentsController } from './plugin-consents.controller.js';
   imports: [
     MongooseModule.forFeature([
       { name: PluginConsent.name, schema: PluginConsentSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthModule,
     WorkspacesModule,
