@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { SchemaTypes, type HydratedDocument } from 'mongoose';
+import type { HydratedDocument } from 'mongoose';
 
 export type UserPluginDocument = HydratedDocument<UserPlugin>;
 
@@ -35,43 +35,11 @@ export class UserPlugin {
   @Prop({ type: String })
   connectorName?: string;
 
-  /** How the handshake is performed: Azure managed connector or our adapter. */
-  @Prop({ type: String, enum: ['azure', 'adapter'], default: 'azure' })
-  authMode?: 'azure' | 'adapter';
-
-  /** Opaque OAuth state for the adapter (Path B) flow, used to correlate callbacks. */
-  @Prop({ type: String, index: true })
-  oauthState?: string;
-
-  /** Name of the Microsoft.Web/connections resource in Azure. */
-  @Prop({ type: String, index: true })
-  azureConnectionName?: string;
-
-  /** Azure connection id returned after consent completes. */
-  @Prop({ type: String })
-  azureConnectionId?: string;
-
-  /** Full ARM resource id of the Azure connection. */
-  @Prop({ type: String })
-  azureResourceId?: string;
-
-  /** Resource group holding the Azure connection. */
-  @Prop({ type: String })
-  azureResourceGroup?: string;
-
-  /** Raw status/details snapshot from the Azure connection. */
-  @Prop({ type: SchemaTypes.Mixed })
-  metadata?: Record<string, unknown>;
-
-  /** Encrypted access token blob (iv | data | tag). */
-  @Prop({ type: String })
-  encryptedToken?: string;
-
-  /** Decrypted account identifier shown in the UI (e.g. portal name). */
+  /** Account identifier shown in the UI (e.g. portal name). */
   @Prop({ type: String })
   accountName?: string;
 
-  /** Scopes actually granted at connect time. */
+  /** Scopes recorded at connect time. */
   @Prop({ type: [String], default: [] })
   scopes?: string[];
 
