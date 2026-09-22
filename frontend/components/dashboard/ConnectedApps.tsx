@@ -131,7 +131,7 @@ export function ConnectedApps() {
   ).length;
 
   const connectedConnections = connections.filter(
-    (c) => !["revoked", "error"].includes(c.status),
+    (c) => !["revoked", "error", "pending"].includes(c.status),
   );
 
   const availablePluginSlugs = new Set(
@@ -155,9 +155,13 @@ export function ConnectedApps() {
         return;
       }
       if (!response.ok) {
+        const detail = (await response
+          .json()
+          .catch(() => null)) as { message?: string } | null;
         toast({
           title: "Could not connect",
-          description: "Please try again in a moment.",
+          description:
+            detail?.message ?? "Please try again in a moment.",
           variant: "error",
         });
         return;
