@@ -73,11 +73,14 @@ export class PluginOAuthService {
       connector.slug,
     );
     if (connection) {
-      if (connection.status === 'active' || connection.status === 'pending') {
+      if (connection.status === 'active') {
         throw new ConflictException(
           `A connection for "${connector.slug}" already exists. Disconnect it to connect again.`,
         );
       }
+      // pending/error/expired/stale/revoked rows have no usable credentials, so
+      // reuse them and resume the OAuth handshake instead of hard-conflicting.
+      await this.connectionsService.setStatus(connection._id.toString(), 'pending');
     }
 
     connection =
