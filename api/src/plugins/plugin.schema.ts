@@ -5,12 +5,41 @@ export type PluginDocument = HydratedDocument<Plugin>;
 
 export type PluginSource = 'builtin' | 'foundry';
 export type PluginAuthType = 'oauth2' | 'apikey' | 'manual';
+export type PluginAuthMode = 'azure-managed' | 'oauth' | 'manual';
 export type PluginCategory =
   | 'crm'
   | 'marketing'
   | 'support'
   | 'data'
   | 'product';
+
+/**
+ * Per-connector OAuth metadata. When present, the platform authenticates
+ * against the connector's own authorization/token servers. When absent for
+ * catalog (foundry) connectors, the Azure managed-connector consent flow is
+ * used instead. Client secrets are always stored encrypted.
+ */
+export interface PluginOAuthConfig {
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  clientId?: string;
+  /** Name of an env var holding the client secret; never persisted. */
+  clientSecretRef?: string;
+  scope?: string[];
+  baseUrl?: string;
+  responseType?: string;
+}
+
+/** Metadata used by the generic normalizer to map connector records. */
+export interface PluginNormalizationConfig {
+  entityType?: string;
+  idField?: string;
+  nameField?: string;
+  amountField?: string;
+  statusField?: string;
+  stageField?: string;
+  dateField?: string;
+}
 
 @Schema({
   collection: 'plugins',
@@ -44,6 +73,10 @@ export class Plugin {
   @Prop({ type: String, default: '#34744e' })
   brandColor?: string;
 
+  /** Optional brand logo / mark URL shown on the plugin tile. */
+  @Prop({ type: String })
+  iconUrl?: string;
+
   /** Who provides the integration: built-in adapter or Azure Foundry catalog. */
   @Prop({
     type: String,
@@ -71,6 +104,26 @@ export class Plugin {
   /** Sort weight for catalog ordering (lower first). */
   @Prop({ type: Number, default: 100 })
   sortOrder?: number;
+
+  /** Auth engine used to connect: Azure-managed or metadata-driven OAuth. */
+  @Prop({
+    type: String,
+    enum: ['azure-managed', 'oauth', 'manual'],
+    default: 'oauth',
+  })
+  authMode?: PluginAuthMode;
+
+  /** Read model capabilities exposed to the connector runtime, e.g. deals. */
+  @Prop({ type: [String], default: [] })
+  capabilities?: string[];
+
+  /** OAuth metadata for connectors authenticated directly (not via Azure). */
+  @Prop({ type: Object })
+  oauthConfig?: PluginOAuthConfig;
+
+  /** Normalizer field mapping consumed by the generic revenue normalizer. */
+  @Prop({ type: Object })
+  normalization?: PluginNormalizationConfig;
 
   /** Only set for Foundry-sourced plugins. */
   @Prop({ type: String })
