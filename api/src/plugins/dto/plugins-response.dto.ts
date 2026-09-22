@@ -1,4 +1,11 @@
-import { IsString, IsBoolean, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsObject,
+} from 'class-validator';
 
 export class PluginResponse {
   @IsString()
@@ -29,8 +36,21 @@ export class PluginResponse {
   authType!: string;
 
   @IsOptional()
+  @IsString()
+  authMode?: string;
+
+  @IsOptional()
   @IsString({ each: true })
   scopes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  capabilities?: string[];
+
+  @IsOptional()
+  @IsObject()
+  normalization?: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()

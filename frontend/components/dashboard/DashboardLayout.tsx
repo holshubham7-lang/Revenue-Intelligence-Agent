@@ -336,6 +336,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     match: (p: string) => p.startsWith("/dashboard/company"),
                   },
                   {
+                    href: "/dashboard/connected-apps",
+                    label: "Connected Apps",
+                    icon: "link" as const,
+                    match: (p: string) => p.startsWith("/dashboard/connected-apps"),
+                  },
+                  {
+                    href: "/dashboard/action-plans",
+                    label: "Action Plans",
+                    icon: "action" as const,
+                    match: (p: string) => p.startsWith("/dashboard/action-plans"),
+                  },
+                  {
                     href: "/dashboard/plugins",
                     label: "Plugins",
                     icon: "plugin" as const,

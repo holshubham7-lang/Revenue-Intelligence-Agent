@@ -157,6 +157,9 @@ export class AzureCatalogService implements OnApplicationBootstrap {
         brandColor: seed.brandColor,
         source: 'foundry',
         authType: 'oauth2',
+        authMode:
+          (seed.authMode as 'azure-managed' | 'oauth' | 'manual') ??
+          'azure-managed',
         scopes: seed.scopes ?? [],
         enabled: true,
         sortOrder: seed.sortOrder ?? 100,
@@ -243,11 +246,23 @@ export class AzureCatalogService implements OnApplicationBootstrap {
       brandColor,
       source: 'foundry',
       authType: 'oauth2',
+      authMode: 'azure-managed',
+      capabilities: this.defaultCapabilities(category, name),
       scopes: this.collectScopes(props.connectionParameters),
       enabled: true,
       sortOrder: index,
       iconUrl: general.iconUrl,
     };
+  }
+
+  private defaultCapabilities(category: string, _name: string): string[] {
+    if (category === 'crm')
+      return ['deals', 'contacts', 'accounts', 'activities', 'metrics'];
+    if (category === 'marketing')
+      return ['campaigns', 'leads', 'conversion', 'metrics'];
+    if (category === 'support') return ['tickets', 'customers', 'metrics'];
+    if (category === 'data') return ['records', 'metrics'];
+    return ['records'];
   }
 
   private collectScopes(

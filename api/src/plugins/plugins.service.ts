@@ -1,19 +1,37 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Plugin, PluginDocument } from './plugin.schema.js';
 import {
-  UserPlugin,
-  UserPluginDocument,
-  ConnectionStatus,
-} from './user-plugin.schema.js';
+  Plugin,
+  PluginDocument,
+  PluginNormalizationConfig,
+  PluginOAuthConfig,
+} from './plugin.schema.js';
+import { UserPlugin, UserPluginDocument } from './user-plugin.schema.js';
 import { PLUGIN_SEED_DATA } from './plugin-seed.data.js';
 import { AzureCatalogService } from './azure-catalog.service.js';
-import { PluginResponse, UserPluginResponse } from './dto/plugins-response.dto.js';
+import { PluginResponse } from './dto/plugins-response.dto.js';
 
-export interface StartConnectionResult {
-  authUrl: string | null;
-  status: ConnectionStatus;
+/**
+ * Resolved connector metadata used by the generic OAuth flow and the
+ * connector runtime. Fully connector-agnostic: nothing here references a
+ * specific vendor besides the metadata that describes it.
+ */
+export interface ConnectorMetadata {
+  slug: string;
+  name: string;
+  description?: string;
+  category: string;
+  mark?: string;
+  brandColor?: string;
+  iconUrl?: string;
+  source: string;
+  authType: string;
+  authMode: 'azure-managed' | 'oauth' | 'manual';
+  scopes?: string[];
+  capabilities: string[];
+  normalization?: PluginNormalizationConfig;
+  oauthConfig?: PluginOAuthConfig;
 }
 
 @Injectable()
@@ -61,24 +79,6 @@ export class PluginsService {
     return plugins.map((p) => this.toPluginResponse(p));
   }
 
-  async getConnections(userId: string): Promise<UserPluginResponse[]> {
-    const connections = await this.userPluginModel
-      .find({ userId })
-      .sort({ connectedAt: -1 })
-      .lean()
-      .exec();
-    return connections.map((c) => ({
-      pluginSlug: c.pluginSlug,
-      status: c.status as ConnectionStatus,
-      connectorName: c.connectorName,
-      accountName: c.accountName,
-      scopes: c.scopes,
-      connectedAt: c.connectedAt,
-      lastSyncAt: c.lastSyncAt,
-    }));
-  }
-
-  /** Returns the connected-slug set for a user, used by the marketplace UI. */
   async getConnectedSlugs(userId: string): Promise<string[]> {
     const connections = await this.userPluginModel
       .find({ userId, status: 'connected' })
@@ -89,43 +89,50 @@ export class PluginsService {
   }
 
   /**
-   * Records an intent to connect a plugin. The advanced OAuth handoff and Azure
-   * provisioning have been removed; the marketplace confirms the request with a
-   * toast only.
+   * Resolves full connector metadata by slug. Lookups hit the Mongo catalog
+   * first (seeded + enriched), then the live Azure connector catalog.
    */
-  async startConnection(
-    userId: string,
-    slug: string,
-  ): Promise<StartConnectionResult> {
+  async findConnector(slug: string): Promise<ConnectorMetadata> {
     const plugin = await this.pluginModel.findOne({ slug, enabled: true }).exec();
-    if (!plugin) {
-      throw new NotFoundException(`Plugin "${slug}" not found in catalog`);
+    if (plugin) {
+      return this.toConnectorMetadata(plugin);
     }
-
-    await this.userPluginModel
-      .updateOne(
-        { userId, pluginSlug: slug },
-        {
-          $set: {
-            status: 'pending',
-            scopes: plugin.scopes ?? [],
-            updatedAt: new Date(),
-          },
-        },
-        { upsert: true },
-      )
-      .exec();
-
-    return { authUrl: null, status: 'pending' };
+    const catalog = await this.azureCatalogService.getConnectors();
+    const item = catalog.find((connector) => connector.slug === slug);
+    if (!item) {
+      throw new NotFoundException(`Connector "${slug}" not found in catalog`);
+    }
+    return {
+      ...item,
+      capabilities: item.capabilities ?? [],
+      authMode: 'azure-managed',
+    };
   }
 
-  async disconnect(userId: string, slug: string): Promise<void> {
-    await this.userPluginModel
-      .updateOne(
-        { userId, pluginSlug: slug },
-        { $set: { status: 'disconnected', updatedAt: new Date() } },
-      )
-      .exec();
+  private toConnectorMetadata(
+    plugin: PluginDocument | Record<string, unknown>,
+  ): ConnectorMetadata {
+    const oauthConfig = plugin.oauthConfig as PluginOAuthConfig | undefined;
+    return {
+      slug: String(plugin.slug),
+      name: String(plugin.name),
+      description: plugin.description as string | undefined,
+      category: String(plugin.category),
+      mark: plugin.mark as string | undefined,
+      brandColor: plugin.brandColor as string | undefined,
+      iconUrl: plugin.iconUrl as string | undefined,
+      source: String(plugin.source),
+      authType: String(plugin.authType),
+      authMode:
+        (plugin.authMode as ConnectorMetadata['authMode']) ??
+        (oauthConfig?.authorizationUrl ? 'oauth' : 'azure-managed'),
+      scopes: (plugin.scopes as string[] | undefined) ?? [],
+      capabilities: (plugin.capabilities as string[] | undefined) ?? [],
+      normalization: plugin.normalization as
+        | PluginNormalizationConfig
+        | undefined,
+      oauthConfig,
+    };
   }
 
   private toPluginResponse(plugin: PluginDocument | Record<string, unknown>): PluginResponse {
@@ -138,9 +145,13 @@ export class PluginsService {
       brandColor: plugin.brandColor as string | undefined,
       source: String(plugin.source),
       authType: String(plugin.authType),
+      authMode: plugin.authMode as string | undefined,
       scopes: (plugin.scopes as string[] | undefined) ?? [],
+      capabilities: (plugin.capabilities as string[] | undefined) ?? [],
+      normalization: plugin.normalization as Record<string, unknown> | undefined,
       enabled: plugin.enabled as boolean | undefined,
       sortOrder: plugin.sortOrder as number | undefined,
+      iconUrl: plugin.iconUrl as string | undefined,
     };
   }
 }
