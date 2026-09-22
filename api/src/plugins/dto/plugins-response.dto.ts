@@ -58,18 +58,6 @@ export class UserPluginResponse {
 
   @IsOptional()
   @IsString()
-  azureConnectionName?: string;
-
-  @IsOptional()
-  @IsString()
-  azureConnectionId?: string;
-
-  @IsOptional()
-  @IsString()
-  azureResourceGroup?: string;
-
-  @IsOptional()
-  @IsString()
   accountName?: string;
 
   @IsOptional()

@@ -18,18 +18,13 @@ const SECRET_MAP: Record<string, string> = {
   MICROSOFT_CLIENT_SECRET: 'MICROSOFT-CLIENT-SECRET',
   LINKEDIN_CLIENT_ID: 'LINKEDIN-CLIENT-ID',
   LINKEDIN_CLIENT_SECRET: 'LINKEDIN-CLIENT-SECRET',
-  HUBSPOT_CLIENT_ID: 'HUBSPOT-CLIENT-ID',
-  HUBSPOT_CLIENT_SECRET: 'HUBSPOT-CLIENT-SECRET',
 };
 
 /**
  * Secrets that may legitimately be absent (feature not yet enabled). A missing
  * value only warns; it never aborts startup, even in production.
  */
-const OPTIONAL_SECRETS = new Set<string>([
-  'HUBSPOT_CLIENT_ID',
-  'HUBSPOT_CLIENT_SECRET',
-]);
+const OPTIONAL_SECRETS = new Set<string>([]);
 
 /**
  * Loads sensitive configuration from Azure Key Vault into process.env BEFORE
