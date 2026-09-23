@@ -14,7 +14,6 @@ import { AuditModule } from './audit/audit.module.js';
 import { PluginConsentsModule } from './plugin-consents/plugin-consents.module.js';
 import { PluginConnectionsModule } from './plugin-connections/plugin-connections.module.js';
 import { ConnectorRuntimeModule } from './connector-runtime/connector-runtime.module.js';
-import { PluginOAuthModule } from './plugin-oauth/plugin-oauth.module.js';
 import { RevenueDataModule } from './revenue-data/revenue-data.module.js';
 import { SnapshotsModule } from './snapshots/snapshots.module.js';
 import { ChangeDetectionModule } from './change-detection/change-detection.module.js';
@@ -36,7 +35,6 @@ import { ActionPlansModule } from './action-plans/action-plans.module.js';
     PluginConsentsModule,
     PluginConnectionsModule,
     ConnectorRuntimeModule,
-    PluginOAuthModule,
     RevenueDataModule,
     SnapshotsModule,
     ChangeDetectionModule,

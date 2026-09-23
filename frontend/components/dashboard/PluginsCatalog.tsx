@@ -50,7 +50,6 @@ export function PluginsCatalog() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filters>("all");
-  const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -121,73 +120,12 @@ const visible = useMemo(() => {
 
   const connectedCount = plugins.filter((p) => p.connected).length;
 
-  async function handleConnect(plugin: Plugin) {
-    setBusy(plugin.slug);
-    try {
-      const response = await fetch(
-        `${API_URL}/plugins/${plugin.slug}/connect`,
-        { method: "POST", credentials: "include" },
-      );
-      if (response.status === 401) {
-        toast({
-          title: "Session expired",
-          description: "Please sign in again to connect plugins.",
-          variant: "error",
-        });
-        return;
-      }
-      if (!response.ok) {
-        toast({
-          title: "Could not connect",
-          description: "Please try again in a moment.",
-          variant: "error",
-        });
-        return;
-      }
-      toast({
-        title: "Connection started",
-        description: `${plugin.name} will be connected shortly.`,
-      });
-    } catch {
-      toast({
-        title: "Network error",
-        description: "Please check your connection and try again.",
-        variant: "error",
-      });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleDisconnect(plugin: Plugin) {
-    setBusy(plugin.slug);
-    try {
-      const response = await fetch(
-        `${API_URL}/plugins/${plugin.slug}/disconnect`,
-        { method: "POST", credentials: "include" },
-      );
-      if (!response.ok) {
-        toast({
-          title: "Could not disconnect",
-          description: "Please try again in a moment.",
-          variant: "error",
-        });
-        return;
-      }
-      toast({
-        title: "Disconnected",
-        description: `${plugin.name} is no longer linked`,
-        variant: "info",
-      });
-    } catch {
-      toast({
-        title: "Network error",
-        description: "Please check your connection and try again.",
-        variant: "error",
-      });
-    } finally {
-      setBusy(null);
-    }
+  function handleConnect(plugin: Plugin) {
+    toast({
+      title: "Connection is not done yet",
+      description: `${plugin.name} will be available to link soon.`,
+      variant: "info",
+    });
   }
 
   if (status !== "ready") {
@@ -312,9 +250,7 @@ const visible = useMemo(() => {
                   >
                     <PluginCardInner
                       plugin={plugin}
-                      busy={busy === plugin.slug}
                       onConnect={() => handleConnect(plugin)}
-                      onDisconnect={() => handleDisconnect(plugin)}
                       onToast={() =>
                         toast({
                           title: "Read-only data",
@@ -336,15 +272,11 @@ const visible = useMemo(() => {
 
 function PluginCardInner({
   plugin,
-  busy,
   onConnect,
-  onDisconnect,
   onToast,
 }: {
   plugin: Plugin;
-  busy: boolean;
   onConnect: () => void;
-  onDisconnect: () => void;
   onToast: () => void;
 }) {
   return (
@@ -400,25 +332,13 @@ function PluginCardInner({
           Read-only
         </button>
 
-        {plugin.connected ? (
-          <button
-            type="button"
-            onClick={onDisconnect}
-            disabled={busy}
-            className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line-strong bg-surface px-4 text-xs font-semibold text-ink transition-colors hover:border-line-strong hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? "Removing…" : "Disconnect"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onConnect}
-            disabled={busy}
-            className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? "Connecting…" : "Connect"}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onConnect}
+          className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-brand-700"
+        >
+          Connect
+        </button>
       </div>
     </div>
   );

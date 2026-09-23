@@ -5,7 +5,6 @@ import {
   PluginConnectionDocument,
 } from '../plugin-connections/plugin-connection.schema.js';
 import { PluginConnectionsService } from '../plugin-connections/plugin-connections.service.js';
-import { AzureConnectionService } from './azure-connection.service.js';
 import {
   ConnectorAdapterService,
 } from './connector-adapter.service.js';
@@ -22,21 +21,15 @@ export interface HydrationResult {
 }
 
 /**
- * Generic connector runtime. Hydrates data from any connector using either:
- *  - the Azure managed-connector runtime (catalog connectors), or
- *  - the connector's own REST API via metadata-driven OAuth.
- * It never contains provider-specific logic.
+ * Generic connector runtime. Hydrates data from metadata-driven OAuth
+ * connectors using the connector's own REST API. It never contains
+ * provider-specific logic and never exposes secrets.
  */
 @Injectable()
 export class ConnectorRuntimeService {
   private readonly logger = new Logger(ConnectorRuntimeService.name);
-  private readonly connectionStringCache = new Map<
-    string,
-    { value: string; expiresAt: number }
-  >();
 
   constructor(
-    private readonly azureService: AzureConnectionService,
     private readonly adapter: ConnectorAdapterService,
     private readonly connectionsService: PluginConnectionsService,
     private readonly config: ConfigService,
@@ -56,9 +49,7 @@ export class ConnectorRuntimeService {
         : ['records'];
 
     try {
-      if (input.connector.authMode === 'azure-managed') {
-        result.capabilities = await this.hydrateAzureManaged(input, capabilities);
-      } else if (input.connector.authMode === 'oauth') {
+      if (input.connector.authMode === 'oauth') {
         result.capabilities = await this.hydrateOauth(input, capabilities);
       } else {
         result.error = `Connector "${input.connector.slug}" cannot be auto-synced (auth mode "${input.connector.authMode}").`;
@@ -72,72 +63,6 @@ export class ConnectorRuntimeService {
     }
 
     return result;
-  }
-
-  private async hydrateAzureManaged(
-    input: { connection: PluginConnectionDocument; connector: ConnectorMetadata },
-    capabilities: string[],
-  ): Promise<HydratedCapability[]> {
-    const connection = input.connection;
-    if (!connection.azureConnectionName) {
-      return [];
-    }
-
-    const connectionString = await this.getConnectionString(
-      connection.azureConnectionName,
-    );
-    const invokeUrl = await this.azureService.getInvokeUrl(
-      connection.azureConnectionName,
-      connectionString,
-    );
-
-    const out: HydratedCapability[] = [];
-    for (const capability of capabilities) {
-      const paths = this.adapter
-        .getCapabilityPaths(capability)
-        .map((p) => ({ path: p, method: 'GET' as const }));
-      const tried = await this.tryPathsAzure(
-        input.connection,
-        input.connector,
-        invokeUrl,
-        connectionString,
-        capability,
-        paths,
-      );
-      if (tried) out.push(tried);
-    }
-    return out;
-  }
-
-  private async tryPathsAzure(
-    _connection: PluginConnectionDocument,
-    connector: ConnectorMetadata,
-    invokeUrl: string,
-    connectionString: string,
-    capability: string,
-    candidates: Array<{ path: string; method: 'GET' | 'POST' }>,
-  ): Promise<HydratedCapability | undefined> {
-    for (const candidate of candidates) {
-      try {
-        const raw = await this.azureService.invokeConnector({
-          invokeUrl,
-          connectionString,
-          path: candidate.path,
-          method: candidate.method,
-          connectorName: connector.slug,
-        });
-        const records = this.adapter.extractRecords(raw);
-        if (records.length === 0) continue;
-        return { capability, records, path: candidate.path };
-      } catch (error) {
-        this.logger.debug(
-          `Azure path ${candidate.path} failed for ${connector.slug}: ${
-            (error as Error).message
-          }`,
-        );
-      }
-    }
-    return undefined;
   }
 
   private async hydrateOauth(
@@ -212,7 +137,7 @@ export class ConnectorRuntimeService {
 
   /**
    * Token refresh against the connector's metadata-declared token endpoint.
-   * Never touches Azure; never exposes secrets.
+   * Never exposes secrets.
    */
   async refreshAccessToken(input: {
     connection: PluginConnectionDocument;
@@ -272,78 +197,6 @@ export class ConnectorRuntimeService {
       input.connector.slug,
       'connected',
     );
-  }
-
-  /**
-   * Revokes access at the source: Azure managed connection is deleted,
-   * metadata-driven connectors get a best-effort revoke call. Then the
-   * connection is finalized locally (tokens wiped, status revoked).
-   */
-  async revokeConnection(input: {
-    connection: PluginConnectionDocument;
-    connector: ConnectorMetadata;
-    workspaceId: string;
-    actorId?: string;
-    reason?: string;
-  }): Promise<void> {
-    try {
-      if (
-        input.connector.authMode === 'azure-managed' &&
-        input.connection.azureConnectionName
-      ) {
-        await this.azureService.deleteConnection(input.connection.azureConnectionName);
-      } else if (input.connector.oauthConfig?.tokenUrl) {
-        await this.revokeOauthAccess(input.connection, input.connector);
-      }
-    } catch (error) {
-      this.logger.warn(
-        `Remote revocation reported an issue: ${(error as Error).message}`,
-      );
-    }
-    await this.connectionsService.finalizeRevoke(input.connection._id.toString(), {
-      workspaceId: input.workspaceId,
-      actorId: input.actorId,
-      reason: input.reason,
-    });
-  }
-
-  private async revokeOauthAccess(
-    connection: PluginConnectionDocument,
-    connector: ConnectorMetadata,
-  ): Promise<void> {
-    const { accessToken, refreshToken } =
-      await this.connectionsService.getDecryptedTokens(connection);
-    const reachable = (connector.oauthConfig?.tokenUrl ?? '')
-      .replace(/token$/, 'revoke')
-      .replace(/token\?/, 'revoke?');
-    if (!reachable || !accessToken) return;
-
-    const body = new URLSearchParams({
-      token: refreshToken ?? accessToken,
-      ...(connector.oauthConfig?.clientId
-        ? { client_id: connector.oauthConfig.clientId }
-        : {}),
-      ...(this.resolveClientSecret(connector)
-        ? { client_secret: this.resolveClientSecret(connector) }
-        : {}),
-    });
-    await fetch(reachable, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-      signal: AbortSignal.timeout(30000),
-    }).catch(() => undefined);
-  }
-
-  private async getConnectionString(connectionName: string): Promise<string> {
-    const cached = this.connectionStringCache.get(connectionName);
-    if (cached && cached.expiresAt > Date.now()) return cached.value;
-    const value = await this.azureService.getRuntimeConnectionString(connectionName);
-    this.connectionStringCache.set(connectionName, {
-      value,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    });
-    return value;
   }
 
   private isExpired(connection: PluginConnectionDocument): boolean {
