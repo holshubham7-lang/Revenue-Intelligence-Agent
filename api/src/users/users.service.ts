@@ -89,6 +89,13 @@ export class UsersService {
       input.providerId,
     );
     if (existingSocial) {
+      // Refresh the picture on every sign-in so a changed provider avatar
+      // propagates. Never clear an existing one when the provider omits it.
+      const profileImage = this.normalizeProfileImage(input.profileImage);
+      if (profileImage && existingSocial.profileImage !== profileImage) {
+        existingSocial.profileImage = profileImage;
+        await existingSocial.save();
+      }
       await this.decryptPii(existingSocial);
       return { user: existingSocial, created: false, linked: true };
     }
@@ -99,6 +106,14 @@ export class UsersService {
       existingByEmail.authProvider = input.provider;
       existingByEmail.providerId = input.providerId;
       existingByEmail.isEmailVerified = true;
+      // The incoming provider is now the identity of record, so adopt its
+      // picture. Without this, an account created by email/password (or linked
+      // from a provider with no photo) keeps a null profileImage forever and
+      // the UI falls back to initials.
+      const linkedImage = this.normalizeProfileImage(input.profileImage);
+      if (linkedImage) {
+        existingByEmail.profileImage = linkedImage;
+      }
       await existingByEmail.save();
       await this.decryptPii(existingByEmail);
       return { user: existingByEmail, created: false, linked: true };
@@ -111,12 +126,31 @@ export class UsersService {
       name: trimmedName,
       nameEncrypted,
       email,
-      profileImage: input.profileImage,
+      profileImage: this.normalizeProfileImage(input.profileImage),
       authProvider: input.provider,
       providerId: input.providerId,
       isEmailVerified: input.emailVerified === true,
     });
     return { user, created: true, linked: false };
+  }
+
+  /**
+   * Accepts only absolute http(s) URLs. The value is echoed to the client and
+   * rendered as an <img src>, so anything else (relative paths, data:, js:)
+   * is dropped rather than persisted.
+   */
+  private normalizeProfileImage(value: string | undefined): string | undefined {
+    const trimmed = value?.trim();
+    if (!trimmed) return undefined;
+    try {
+      const url = new URL(trimmed);
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return undefined;
+      }
+      return url.toString();
+    } catch {
+      return undefined;
+    }
   }
 
   async findById(id: string): Promise<UserDocument | null> {
