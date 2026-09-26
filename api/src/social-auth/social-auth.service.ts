@@ -284,13 +284,17 @@ export class SocialAuthService {
         if (!providerId || !email) {
           throw new BadRequestException('Incomplete LinkedIn profile');
         }
+        const profileImage = raw.picture ? String(raw.picture) : undefined;
+        this.logger.debug(
+          `[SOCIAL-DEBUG] linkedin profile -> email=${email} picture=${profileImage ? 'present' : 'MISSING'} keys=${Object.keys(raw).join(',')}`,
+        );
         return {
           provider,
           providerId,
           email,
           emailVerified: raw.email_verified === true,
           name,
-          profileImage: raw.picture ? String(raw.picture) : undefined,
+          profileImage,
         };
       }
       default:
