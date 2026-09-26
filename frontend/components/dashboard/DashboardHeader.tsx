@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { SITE } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const LOGO_SRC = "https://www.stratvedatech.com/logo.png";
 
 type DashboardHeaderProps = {
-  user: { id: string; name: string; email: string };
+  user: { name: string; profileImage?: string };
   onLogout: () => void;
   onToggleSidebar: () => void;
 };
@@ -21,6 +22,44 @@ function initialsOf(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+type UserAvatarProps = {
+  name: string;
+  src?: string;
+  className?: string;
+};
+
+function UserAvatar({ name, src, className }: UserAvatarProps) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showImage = Boolean(src) && src !== failedSrc;
+
+  if (showImage) {
+    return (
+      <Image
+        src={src as string}
+        alt=""
+        aria-hidden="true"
+        width={40}
+        height={40}
+        unoptimized
+        onError={() => setFailedSrc(src as string)}
+        className={cn("shrink-0 object-cover", className)}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-white",
+        className,
+      )}
+    >
+      {initialsOf(name)}
+    </span>
+  );
 }
 
 export function DashboardHeader({
@@ -89,16 +128,13 @@ export function DashboardHeader({
               aria-expanded={menuOpen}
               className="flex cursor-pointer items-center gap-2.5 rounded-xl p-1 pr-2 transition-colors hover:bg-white/10"
             >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-500 text-sm font-semibold text-white">
-                {initialsOf(user.name)}
-              </span>
-              <span className="hidden max-w-40 truncate text-left md:block">
-                <span className="block truncate text-sm font-semibold text-white">
-                  {user.name}
-                </span>
-                <span className="block truncate text-xs text-white/50">
-                  {user.email}
-                </span>
+              <UserAvatar
+                name={user.name}
+                src={user.profileImage}
+                className="size-10 rounded-xl"
+              />
+              <span className="hidden max-w-40 truncate text-left text-sm font-semibold text-white md:block">
+                {user.name}
               </span>
               <Icon
                 name="chevron-down"
@@ -113,12 +149,14 @@ export function DashboardHeader({
                 aria-label="Account menu"
                 className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-white/10 bg-ink p-1.5 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.6)]"
               >
-                <div className="border-b border-white/10 px-3 pb-2.5 pt-1.5">
+                <div className="flex items-center gap-2.5 border-b border-white/10 px-3 py-2.5">
+                  <UserAvatar
+                    name={user.name}
+                    src={user.profileImage}
+                    className="size-9 rounded-lg"
+                  />
                   <p className="truncate text-sm font-semibold text-white">
                     {user.name}
-                  </p>
-                  <p className="truncate text-xs text-white/50">
-                    {user.email}
                   </p>
                 </div>
                 <div className="py-1.5">
