@@ -27,6 +27,13 @@ frontend/.next/
 api/dist/
 *.tsbuildinfo
 admin/api/dist/
+# v1.1 lives side-by-side under its own paths, so the same build output
+# patterns are repeated for it (the ones above are root-anchored).
+v1.1/frontend/.next/
+v1.1/api/dist/
+
+# Local runtime state for the v1.1 API: uploaded workbooks and cached exports
+v1.1/**/.data/
 
 # Local deploy artifacts (Azure App Service packages)
 *-deploy.zip
