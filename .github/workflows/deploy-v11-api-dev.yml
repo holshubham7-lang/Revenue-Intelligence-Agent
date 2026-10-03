@@ -1,0 +1,67 @@
+name: Deploy v1.1 API (dev)
+
+# v1.1 runs next to v1.0 in this repo, under v1.1/, and deploys to its own App
+# Service. Nothing here touches the v1.0 pipelines: their `api/**` / `frontend/**`
+# path filters cannot match a v1.1 commit, and this one cannot match a v1.0
+# commit, so a change to either version deploys exactly one app.
+#
+# Before the first run these have to exist, none of which this workflow creates:
+#   - App Service `revops-v11-api-dev` in `stratvedaos_group`, Linux, node 24,
+#     with SCM_DO_BUILD_DURING_DEPLOYMENT=1
+#   - plain settings for the names that carry no credential: APP_BASE_URL, PORT,
+#     NODE_ENV, MONGODB_DB, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME,
+#     AZURE_OPENAI_TIMEOUT_MS, AZURE_OPENAI_MAX_TOKENS,
+#     AZURE_FOUNDRY_AGENT_NAME, AZURE_FOUNDRY_AGENT_API_VERSION, ALLOWED_ORIGINS,
+#     AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_CONTAINER, *_CLIENT_ID, MICROSOFT_TENANT
+#   - for every name that does — MONGODB_URI, AUTH_SECRET, DATA_ENCRYPTION_KEY,
+#     AZURE_OPENAI_KEY, AZURE_STORAGE_KEY, AZURE_STORAGE_SAS_TOKEN and the three
+#     *_CLIENT_SECRET — a Key Vault secret, plus an App Service setting of the
+#     same name holding only its Secret URI (a "Key Vault reference"), with the
+#     app's managed identity granted `get` on the vault
+#   - the GitHub `AZURE_CREDENTIALS` secret, already in use by v1.0
+#
+# v1.1 reads configuration straight from process.env, so a Key Vault reference is
+# enough to keep the values out of App Service and out of this repo: rotating one
+# is a vault edit, not a deploy. Starting without a required name fails loudly
+# (common/config.ts throws) rather than serving a half-configured app. The package
+# script shape matches v1.0's service (`start:prod` -> `node dist/main.js`), so
+# whatever startup command those apps use carries over unchanged.
+
+on:
+  push:
+    branches: [development]
+    paths: ['v1.1/api/**']
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v1.1/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: v1.1/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Login to Azure
+        uses: Azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to App Service
+        uses: Azure/webapps-deploy@v3
+        with:
+          app-name: revops-v11-api-dev
+          resource-group-name: stratvedaos_group
+          package: v1.1/api

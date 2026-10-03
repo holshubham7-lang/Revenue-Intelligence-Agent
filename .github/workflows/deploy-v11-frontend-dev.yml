@@ -1,0 +1,53 @@
+name: Deploy v1.1 Frontend (dev)
+
+# See deploy-v11-api-dev.yml for why v1.1 has its own App Service and pipeline.
+#
+# Runtime settings this app needs, which are easy to get wrong because the build
+# passes without them:
+#   - the same names as the API. `API_REWRITE_ENABLED` defaults to off, so the
+#     app/api/** handlers answer /api inside this process and it talks to Mongo
+#     and Foundry itself.
+#   - API_INTERNAL_URL = the v1.1 API's URL. Two onboarding routes are rewritten
+#     to it unconditionally, ahead of that flag, so it is not optional.
+#   - no NEXT_PUBLIC_* at all: the browser only ever calls same-origin /api,
+#     which is what keeps the session and CSRF cookies first-party. Unlike v1.0,
+#     nothing here is baked into the client bundle at build time.
+
+on:
+  push:
+    branches: [development]
+    paths: ['v1.1/frontend/**']
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v1.1/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: v1.1/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Login to Azure
+        uses: Azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to App Service
+        uses: Azure/webapps-deploy@v3
+        with:
+          app-name: revops-v11-frontend-dev
+          resource-group-name: stratvedaos_group
+          package: v1.1/frontend
