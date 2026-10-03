@@ -1,0 +1,400 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Revenue Intelligence — Design System
+   Source: ui-ux-pro-max design system (SaaS / fintech analytics)
+     Style      : Real-Time Operations landing + Data-Dense Dashboard
+      Primary    : #34744E (brand green)     Accent: #D97706 (amber, WCAG 3:1)
+     Typography : Space Grotesk (display) + Inter (body) + JetBrains Mono (data)
+   Tailwind v4 is CSS-first: tokens live here as CSS variables and are exposed
+   to utilities through `@theme inline` (so dark mode can swap them at runtime).
+   ========================================================================== */
+
+/* Dark mode is class-driven (not prefers-color-scheme) so the header toggle
+   can override the OS setting. The pre-paint script in layout.tsx sets .dark. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --------------------------------------------------------------------------
+   1. Semantic colour tokens — light theme (default)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Surfaces */
+  --bg: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f1f5f9;
+  --bg-inset: #eef2f7;
+
+  /* Text — all >= 4.5:1 on their intended surface (WCAG AA) */
+  --ink: #0f172a; /* primary   — 17.9:1 on white */
+  --ink-muted: #475569; /* secondary —  7.5:1 on white */
+  --ink-subtle: #64748b; /* tertiary  —  4.8:1 on white */
+
+  /* Lines */
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+
+  /* Brand */
+  --brand: #34744e; /* 5.6:1 on white */
+  --brand-hover: #2a5f3e; /* 7.5:1 on white */
+  --brand-fg: #ffffff; /* 5.6:1 on --brand */
+  --brand-soft: #e8f2ec;
+  --brand-soft-fg: #1f4d34; /* 8.5:1 on --brand-soft */
+  --brand-line: #c7e0d1;
+
+  /* Accent — used for highlights and the "insight" moments only */
+  --accent: #d97706; /* 3.4:1 — large text / UI glyphs only */
+  --accent-hover: #b45309;
+  --accent-soft: #fef3c7;
+  --accent-soft-fg: #92400e;
+
+  /* Semantic */
+  --positive: #047857;
+  --positive-soft: #d1fae5;
+  --negative: #b91c1c;
+  --negative-soft: #fee2e2;
+
+  --ring: #2a5f3e;
+
+  /* Header shell (translucent sticky bar) */
+  --header-bg: rgb(255 255 255 / 0.72);
+  --header-line: rgb(226 232 240 / 0.9);
+
+  /* Closing CTA band — deliberately FIXED in both themes. A brand-coloured
+     band is a "moment", not a surface: pinning it deep means the white
+     heading, the white button and the muted support copy all stay above
+     4.5:1 whether or not `.dark` is active. If this tracked `--brand` it
+     would flip to a light blue in dark theme and the white-on-band text
+     would collapse to roughly 2:1. */
+  --band-from: #2e6b48; /*  6.3:1 against white text */
+  --band-mid: #34744e; /*  5.6:1 against white text */
+  --band-to: #1f4d34; /*  9.7:1 against white text */
+  --band-fg: #ffffff;
+  --band-fg-muted: rgb(255 255 255 / 0.88); /* >= 4.5:1 on every stop */
+  /* Foreground for a solid-white button sitting on the band */
+  --on-band: #0b1220; /* 18.7:1 on white */
+  --on-band-hover: #e9f0ea;
+  --on-band-active: #d4e2d8;
+}
+
+/* --------------------------------------------------------------------------
+   2. Semantic colour tokens — dark theme
+   -------------------------------------------------------------------------- */
+.dark {
+  --bg: #0b1220;
+  --bg-elevated: #111c2e;
+  --bg-muted: #17243a;
+  --bg-inset: #0f1929;
+
+  --ink: #f1f5f9; /*  15.4:1 on --bg-elevated */
+  --ink-muted: #a8b6c8; /*  7.9:1 on --bg-elevated */
+  --ink-subtle: #8496ac; /*  5.0:1 on --bg-elevated */
+
+  --line: #1e2e45;
+  --line-strong: #2b3d57;
+
+  --brand: #5fbf8f; /*  7.6:1 on --bg-elevated */
+  --brand-hover: #7bd4a8; /*  9.6:1 on --bg-elevated */
+  --brand-fg: #0b1220; /*  8.3:1 on --brand */
+  --brand-soft: #16301f;
+  --brand-soft-fg: #7bd4a8; /*  8.0:1 on --brand-soft */
+  --brand-line: #24452f;
+
+  --accent: #fbbf24;
+  --accent-hover: #fcd34d;
+  --accent-soft: #3a2a0a;
+  --accent-soft-fg: #fcd34d;
+
+  --positive: #34d399;
+  --positive-soft: #06342a;
+  --negative: #f87171;
+  --negative-soft: #3d1414;
+
+  --ring: #5fbf8f;
+
+  --header-bg: rgb(11 18 32 / 0.72);
+  --header-line: rgb(30 46 69 / 0.9);
+}
+
+/* --------------------------------------------------------------------------
+   3. Expose tokens to Tailwind utilities
+   `inline` makes utilities reference the var directly, so `.dark` overrides
+   apply live instead of being frozen at build time.
+   -------------------------------------------------------------------------- */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-muted: var(--bg-muted);
+  --color-bg-inset: var(--bg-inset);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-fg: var(--brand-soft-fg);
+  --color-brand-line: var(--brand-line);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-fg: var(--accent-soft-fg);
+
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+
+  --color-ring: var(--ring);
+
+  /* Closing CTA band — fixed in both themes (see the light-theme block) */
+  --color-band-from: var(--band-from);
+  --color-band-mid: var(--band-mid);
+  --color-band-to: var(--band-to);
+  --color-band-fg: var(--band-fg);
+  --color-band-fg-muted: var(--band-fg-muted);
+  --color-on-band: var(--on-band);
+  --color-on-band-hover: var(--on-band-hover);
+  --color-on-band-active: var(--on-band-active);
+
+  /* Typography — two-stack: display + body share one family; mono for data */
+  --font-display: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-roboto: var(--font-roboto), Roboto, ui-sans-serif, system-ui, sans-serif;
+
+  /* Radii */
+  --radius-card: 1rem;
+  --radius-tile: 0.75rem;
+  --radius-control: 0.625rem;
+  --radius-pill: 9999px;
+
+  /* Elevation — soft, low-spread, fintech-calm */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.07), 0 1px 2px -1px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.05);
+  --shadow-lg: 0 12px 28px -6px rgb(15 23 42 / 0.12), 0 4px 10px -4px rgb(15 23 42 / 0.06);
+  --shadow-xl: 0 24px 56px -12px rgb(15 23 42 / 0.18);
+  --shadow-glow: 0 0 0 1px rgb(30 64 175 / 0.08), 0 18px 48px -12px rgb(30 64 175 / 0.22);
+
+  /* 8px spacing rhythm for section-level layout */
+  --spacing-section: 5rem;
+}
+
+/* --------------------------------------------------------------------------
+   4. Base layer
+   -------------------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    /* In-page anchor navigation; Next 16 opts into scroll overriding with the
+       data-scroll-behavior="smooth" attribute set in layout.tsx. */
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    /* Prevents horizontal scroll on small screens (UX rule: no sideways scroll) */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    /* Headings get tight tracking to read as a display face */
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Visible focus for every interactive element (never remove the ring) */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Firefox/Safari scrollbar theming for the header */
+  ::selection {
+    background-color: var(--brand);
+    color: var(--brand-fg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. Motion
+   Every animation is disabled under prefers-reduced-motion (WCAG 2.3.3).
+   -------------------------------------------------------------------------- */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgb(52 211 153 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(52 211 153 / 0);
+  }
+}
+
+/* Assistant "thinking" waveform — bars scale from the centre */
+@keyframes waveform {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* Blinking caret shown at the end of a streaming response */
+@keyframes cursor-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Expanding halo around the active step in the assessment progress list */
+@keyframes thinking-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@utility animate-float {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+@utility animate-live {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+@utility animate-waveform {
+  animation: waveform 1.1s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@utility animate-cursor-blink {
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+@utility animate-thinking-ring {
+  animation: thinking-ring 1.4s ease-out infinite;
+}
+
+/* Above-the-fold entrance. Deliberately CSS-only: these run before hydration
+   (no JS on the critical path) and are neutralised by the reduced-motion
+   block at the bottom of this file. */
+@utility animate-in {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-in-delay-1 {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+@utility animate-in-delay-2 {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.16s both;
+}
+
+@utility animate-in-delay-3 {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Component-level utilities
+   -------------------------------------------------------------------------- */
+
+/* Shared section vertical rhythm (8px scale) */
+@utility section-y {
+  padding-block: 4rem;
+  @media (width >= 48rem) {
+    padding-block: 5.5rem;
+  }
+  @media (width >= 80rem) {
+    padding-block: 7rem;
+  }
+}
+
+/* Skip link — visible only when focused */
+@utility skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background-color: var(--brand);
+  color: var(--brand-fg);
+  padding: 0.75rem 1.25rem;
+  border-bottom-right-radius: 0.5rem;
+  font-weight: 600;
+
+  &:focus {
+    left: 0;
+  }
+}
