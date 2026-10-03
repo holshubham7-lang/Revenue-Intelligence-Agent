@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets. `.env.example` is the tracked template — the leading `!` re-includes
+# it after the ignore above, so it is never mistaken for a real credentials file.
+.env
+.env.*
+!.env.example
