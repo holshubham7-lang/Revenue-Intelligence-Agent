@@ -1,31 +1,53 @@
 name: Deploy v1.1 API (dev)
 
-# v1.1 runs next to v1.0 in this repo, under v1.1/, and deploys to its own App
-# Service. Nothing here touches the v1.0 pipelines: their `api/**` / `frontend/**`
-# path filters cannot match a v1.1 commit, and this one cannot match a v1.0
-# commit, so a change to either version deploys exactly one app.
+# v1.1 reuses v1.0's dev App Services rather than standing up a `revops-v11-*`
+# pair: this pipeline replaces the code on `revops-api-dev` in place. The plan
+# (`asp-revops-dev`, B2) is Basic tier, which supports zero deployment slots, so
+# there is no staging swap to hide behind — the deploy lands on the public dev
+# URL and the first request is the smoke test.
 #
-# Before the first run these have to exist, none of which this workflow creates:
-#   - App Service `revops-v11-api-dev` in `stratvedaos_group`, Linux, node 24,
-#     with SCM_DO_BUILD_DURING_DEPLOYMENT=1
-#   - plain settings for the names that carry no credential: APP_BASE_URL, PORT,
-#     NODE_ENV, MONGODB_DB, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME,
-#     AZURE_OPENAI_TIMEOUT_MS, AZURE_OPENAI_MAX_TOKENS,
-#     AZURE_FOUNDRY_AGENT_NAME, AZURE_FOUNDRY_AGENT_API_VERSION, ALLOWED_ORIGINS,
-#     AZURE_STORAGE_ACCOUNT, AZURE_STORAGE_CONTAINER, *_CLIENT_ID, MICROSOFT_TENANT
-#   - for every name that does — MONGODB_URI, AUTH_SECRET, DATA_ENCRYPTION_KEY,
-#     AZURE_OPENAI_KEY, AZURE_STORAGE_KEY, AZURE_STORAGE_SAS_TOKEN and the three
-#     *_CLIENT_SECRET — a Key Vault secret, plus an App Service setting of the
-#     same name holding only its Secret URI (a "Key Vault reference"), with the
-#     app's managed identity granted `get` on the vault
-#   - the GitHub `AZURE_CREDENTIALS` secret, already in use by v1.0
+# ROLLING BACK v1.0: `deploy-api-dev.yml` is untouched and still builds `api/**`
+# from whichever branch it runs on, so re-running it restores v1.0 exactly. This
+# pipeline deletes no v1.0 code, setting, or database.
 #
-# v1.1 reads configuration straight from process.env, so a Key Vault reference is
-# enough to keep the values out of App Service and out of this repo: rotating one
-# is a vault edit, not a deploy. Starting without a required name fails loudly
-# (common/config.ts throws) rather than serving a half-configured app. The package
-# script shape matches v1.0's service (`start:prod` -> `node dist/main.js`), so
-# whatever startup command those apps use carries over unchanged.
+# THE FOOTGUN: `deploy-api-dev.yml` triggers on any push to `development` that
+# touches `api/**`, and would redeploy v1.0 over this same app. Until one
+# pipeline serves both versions, a v1.0 commit under `api/**` and a v1.1 deploy
+# are mutually exclusive on dev.
+#
+# Runtime settings. Names only; values live in Key Vault (`kv-revops-dev`) and
+# never in this repo or this file. `common/config.ts` throws at boot when a
+# required name is missing instead of serving a half-configured app, so a cold
+# start failure is usually a setting, not a code fault.
+#
+#   required   APP_BASE_URL         = https://revops-frontend-dev.azurewebsites.net
+#              AUTH_SECRET          = base64url(48) -> vault secret + Key Vault reference
+#              MONGODB_URI          = already present for v1.0 as a Key Vault reference;
+#                                     this app's SystemAssigned identity can read the vault
+#              DATA_ENCRYPTION_KEY  = new vault secret + Key Vault reference
+#
+#   required,  MONGODB_DB = revops_v11. Not optional. It defaults to "revops", which is
+#   easy      v1.0's database, and `ensureCompaniesIndex()` creates a unique index on
+#   to        companies.userId — that fails with DuplicateKey against v1.0-shaped
+#   get       documents. db.ts prefers this name over the DSN path, so one setting moves
+#             every revops_* collection into its own database.
+#
+#   plain     NODE_ENV, PORT, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME,
+#             AZURE_OPENAI_TIMEOUT_MS, AZURE_OPENAI_MAX_TOKENS, AZURE_FOUNDRY_AGENT_NAME,
+#             AZURE_FOUNDRY_AGENT_API_VERSION, ALLOWED_ORIGINS, AZURE_STORAGE_ACCOUNT,
+#             AZURE_STORAGE_CONTAINER, *_CLIENT_ID, MICROSOFT_TENANT
+#   secrets   AZURE_OPENAI_KEY, AZURE_STORAGE_KEY, AZURE_STORAGE_SAS_TOKEN and the three
+#             *_CLIENT_SECRET -> vault secret + Key Vault reference
+#
+# AZURE_OPENAI_ENDPOINT / _DEPLOYMENT_NAME / _KEY already exist here for v1.0; confirm
+# they point at the deployment v1.1 expects before the first run. The OAuth client
+# secrets and the storage keys are read only when those features are used, so the app
+# boots without them.
+#
+# v1.1 reads configuration straight from process.env, so a Key Vault reference keeps
+# the value out of App Service too: rotating one is a vault edit, not a deploy. The
+# build shape matches v1.0's service (`start:prod` -> `node dist/main.js`), so the
+# app's existing startup command carries over unchanged.
 
 on:
   push:
@@ -62,6 +84,6 @@ jobs:
       - name: Deploy to App Service
         uses: Azure/webapps-deploy@v3
         with:
-          app-name: revops-v11-api-dev
+          app-name: revops-api-dev
           resource-group-name: stratvedaos_group
           package: v1.1/api

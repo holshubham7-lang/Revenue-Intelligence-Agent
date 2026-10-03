@@ -1,17 +1,35 @@
 name: Deploy v1.1 Frontend (dev)
 
-# See deploy-v11-api-dev.yml for why v1.1 has its own App Service and pipeline.
+# Replaces the v1.0 UI on `revops-frontend-dev`. See deploy-v11-api-dev.yml for the
+# slot situation (Basic tier has none) and for how v1.0 is restored — its
+# `deploy-frontend-dev.yml` is untouched and re-running it puts v1.0 back.
 #
-# Runtime settings this app needs, which are easy to get wrong because the build
-# passes without them:
-#   - the same names as the API. `API_REWRITE_ENABLED` defaults to off, so the
-#     app/api/** handlers answer /api inside this process and it talks to Mongo
-#     and Foundry itself.
-#   - API_INTERNAL_URL = the v1.1 API's URL. Two onboarding routes are rewritten
-#     to it unconditionally, ahead of that flag, so it is not optional.
-#   - no NEXT_PUBLIC_* at all: the browser only ever calls same-origin /api,
-#     which is what keeps the session and CSRF cookies first-party. Unlike v1.0,
-#     nothing here is baked into the client bundle at build time.
+# Settings. `API_REWRITE_ENABLED=true` routes every `/api/*` to the NestJS service,
+# which was verified against a production `next start`, not just `next dev`: the
+# rewrite streams `POST /api/chat` chunk by chunk (19 chunks, first byte ~1.5s, no
+# gap above 0.5s between them), so flipping the flag does not buffer the transcript.
+#
+# It does not, however, make this app a thin shell. The server components for /chat,
+# /company and /data import `lib/db` and the shared data layer directly and read
+# MongoDB while rendering — so this app needs the same secrets the API does:
+#   required   MONGODB_URI, MONGODB_DB=revops_v11, AUTH_SECRET, DATA_ENCRYPTION_KEY
+#   plain      APP_BASE_URL=https://revops-frontend-dev.azurewebsites.net,
+#              API_REWRITE_ENABLED=true,
+#              API_INTERNAL_URL=https://revops-api-dev.azurewebsites.net, NODE_ENV, PORT
+#   also read  AZURE_OPENAI_* (agent calls made during render), AZURE_STORAGE_* (uploads)
+#
+# API_INTERNAL_URL is not optional even with the flag off: two onboarding routes are
+# rewritten to it unconditionally, ahead of the flag.
+#
+# AZURE_CREDENTIALS NOTE: `revops-frontend-dev` has no managed identity today, so Key
+# Vault references set here resolve to nothing and the app fails at boot with a
+# missing-secret error rather than a 500. Before the first deploy, assign a
+# SystemAssigned identity to it and grant that principal `get` on `kv-revops-dev`;
+# after that the same Secret URIs the API uses work here.
+#
+# No NEXT_PUBLIC_* is used: the browser only ever calls same-origin /api, which is
+# what keeps the session and CSRF cookies first-party. Unlike v1.0, nothing here is
+# baked into the client bundle at build time.
 
 on:
   push:
@@ -48,6 +66,6 @@ jobs:
       - name: Deploy to App Service
         uses: Azure/webapps-deploy@v3
         with:
-          app-name: revops-v11-frontend-dev
+          app-name: revops-frontend-dev
           resource-group-name: stratvedaos_group
           package: v1.1/frontend
