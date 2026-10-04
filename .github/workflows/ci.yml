@@ -102,14 +102,21 @@ jobs:
                       -H "accept: application/vnd.github+json" "$API/$SHA/pulls") \
             || { echo "Could not ask GitHub about $SHA. Failing rather than passing on a shrug."; exit 1; }
 
+          # Feature work lives under `features/<topic>`, never on a branch literally
+          # named `features`: git ref nesting forbids both at once, so the bare name
+          # would make this job refuse every PR it exists to accept. Accept the source
+          # name itself *or* anything namespaced under it.
           pr=$(printf '%s' "$json" | jq --arg base "$GITHUB_REF_NAME" --arg head "$SOURCE" \
-                 '[.[] | select(.base.ref == $base and .head.ref == $head and .merged_at != null)] | first // empty')
+                 '[.[] | select(.base.ref == $base
+                                and (.head.ref == $head
+                                     or (.head.ref | startswith($head + "/")))
+                                and .merged_at != null)] | first // empty')
 
           if [ -z "$pr" ]; then
-            echo "$SHA is not the merge of a PR from \`$SOURCE\` into \`$GITHUB_REF_NAME\`."
+            echo "$SHA is not the merge of a PR from \`$SOURCE\` (or \`$SOURCE/*\`) into \`$GITHUB_REF_NAME\`."
             echo "What GitHub reports for it, which will be empty for a direct push:"
             printf '%s' "$json" | jq -c '[.[] | {number, base: .base.ref, head: .head.ref, merged_at}]'
-            echo "Open a PR from \`$SOURCE\` into \`$GITHUB_REF_NAME\` and let this job judge that instead."
+            echo "Open a PR from \`$SOURCE/*\` into \`$GITHUB_REF_NAME\` and let this job judge that instead."
             exit 1
           fi
 
