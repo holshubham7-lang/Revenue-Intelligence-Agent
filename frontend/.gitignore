@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the committed template, which holds no secrets and documents the
+# provider-console settings needed to make social sign-in work for all users.
+!.env.example
 
 # vercel
 .vercel
