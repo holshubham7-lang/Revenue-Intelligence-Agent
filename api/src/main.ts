@@ -9,6 +9,8 @@ import express from "express";
 import helmet from "helmet";
 
 import { AppModule } from "./app.module";
+import { registerSocialRelay } from "./auth/social-relay.ts";
+import { relayOrigin } from "./auth/oauth-relay.ts";
 import { ApiError, ApiExceptionFilter, invalidJson } from "./common/api-error";
 import { loadConfig } from "./common/config";
 
@@ -96,6 +98,15 @@ async function bootstrap(): Promise<void> {
      pass-through. */
   app.setGlobalPrefix("api");
 
+  /* The one deliberate exception, mounted outside the prefix because the OAuth
+     provider consoles have the prefix-free paths recorded and compare them
+     literally. Registered on the raw instance, ahead of Nest's router, so the path
+     written in `social-relay.ts` is the path served — no global-prefix exclusion
+     that could quietly re-add the `/api` the providers reject. The parsers above
+     run first, which is what makes the state cookie and a `form_post` body
+     readable there. */
+  registerSocialRelay(server);
+
   /* Same-origin is the design: the browser only ever talks to Next.js on :3000,
      and Next forwards `/api/*` here. So this list exists for direct tools
      (curl, the OAuth provider's callback probe, server-to-server calls) — never
@@ -135,6 +146,11 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.port);
   logger.log(`API listening on http://localhost:${config.port} (prefix /api)`);
   logger.log(`Browser origin: ${config.appBaseUrl}`);
+  /* Which callback shape this instance answers, because the two are invisible
+     from the outside and a mismatch is a silent redirect_uri failure. */
+  logger.log(relayOrigin()
+    ? `Social relay on: ${relayOrigin()}/auth/social/<provider>/callback`
+    : "Social relay off: callbacks are same-origin");
 }
 
 bootstrap().catch((error: unknown) => {
