@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 
 import { AuthController } from "./auth/auth.controller";
+import { AccountController } from "./auth/account.controller";
 import { HealthController } from "./health.controller";
 import { SessionInterceptor } from "./auth/session.interceptor";
 import { CompaniesController } from "./company/company.controller";
@@ -12,6 +13,7 @@ import { DataSourcesController } from "./company/data-sources.controller";
   controllers: [
     HealthController,
     AuthController,
+    AccountController,
     CompaniesController,
     ActionPlanController,
     AgentOnboardingController,

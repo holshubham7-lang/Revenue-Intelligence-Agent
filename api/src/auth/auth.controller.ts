@@ -35,6 +35,7 @@ import {
 } from "./session.ts";
 import { validateSignin, validateSignup } from "./validation.ts";
 import { getDb } from "../db.ts";
+import { resolveWorkspaceEntry } from "../onboarding.ts";
 import { findUserByEmail, type UserDoc } from "./user.ts";
 import {
   authorizeUrl,
@@ -148,9 +149,17 @@ export class AuthController {
    * generic path.
    *
    * Request:  { email, password }
-   * Success:  200 { user: { id, name, email } } + Set-Cookie: revops_session
+   * Success:  200 { user: { id, name, email }, redirectTo } + Set-Cookie: revops_session
    * Errors:   400 invalid_json · 403 csrf · 422 validation · 401 bad credentials
    *           · 403 account blocked · 500
+   *
+   * `redirectTo` is the workspace screen this user's onboarding state points at,
+   * so a returning user who already finished the company form lands on their chat
+   * rather than on a form they already submitted. It has to be sent from here as
+   * well as from the Next route handler: with `API_REWRITE_ENABLED` on, this
+   * service is the one answering `/api/auth/signin`, and the client falls back to
+   * `/company` whenever the field is missing — which is how every password
+   * sign-in ended up on the registration form.
    */
   @Post("signin")
   @HttpCode(HttpStatus.OK)
@@ -191,12 +200,35 @@ export class AuthController {
         mintSessionToken(user._id, user.tokenVersion),
         sessionCookieOptions(),
       );
-      return { user: { id: user._id, name: user.name, email: user.email } };
+      return {
+        user: { id: user._id, name: user.name, email: user.email },
+        redirectTo: await this.signinRedirect(user._id),
+      };
     } catch (error: unknown) {
       /* `ApiError` carries a deliberate, safe message; anything else is a fault. */
       if (error instanceof ApiError) throw error;
       console.error("signin: failed lookup", error instanceof Error ? error.message : error);
       throw internal("Couldn't sign you in right now. Please try again in a moment.");
+    }
+  }
+
+  /**
+   * The workspace screen to send this user to after signing in.
+   *
+   * Best-effort by design: a failure to read the company record must not turn a
+   * successful, credential-verified sign-in into a 500. Falling back to
+   * `"/company"` reproduces the old behaviour exactly, so the worst case here is
+   * the bug this replaces rather than a locked-out user.
+   */
+  private async signinRedirect(userId: string): Promise<string> {
+    try {
+      return await resolveWorkspaceEntry(userId);
+    } catch (err) {
+      console.error(
+        "signin: could not resolve workspace entry",
+        err instanceof Error ? err.message : err,
+      );
+      return "/company";
     }
   }
 

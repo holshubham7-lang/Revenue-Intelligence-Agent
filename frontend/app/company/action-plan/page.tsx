@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ActionPlanFlow } from "@/components/company/ActionPlanFlow";
+import { GenerateActionPlan } from "@/components/company/GenerateActionPlan";
 import { Markdown } from "@/components/chat/Markdown";
 import { ButtonLink } from "@/components/ui/Button";
 import { PrerequisiteNotice } from "@/components/ui/PrerequisiteNotice";
@@ -23,8 +24,13 @@ export const metadata: Metadata = {
  * The questions that used to live here now run in the chat interview, so this
  * page renders the result: the structured plan when a company has one from the
  * older data-first funnel, otherwise the assessment the interview produced.
- * Nothing here regenerates or re-interviews — the plan is a view, and the chat
- * is where it is built.
+ * Nothing here re-interviews — the chat is where the interview is built.
+ *
+ * There is one thing on this page that does write, and it is deliberate: a
+ * company holding only an assessment is offered the action plan and can take it
+ * or leave it. A plan is a committed list of work, so it is never produced
+ * without being asked for, and an unasked plan would look identical to an
+ * accepted one.
  *
  * Without a company record this shows the shared prerequisite notice rather
  * than redirecting, for the same reason as the other gated routes.
@@ -85,16 +91,21 @@ export default async function ActionPlanPage() {
           readOnly
         />
       ) : saved.assessment ? (
-        <section className="rounded-card border border-line bg-bg-elevated p-6 shadow-sm">
-          <div className="text-[0.9375rem] leading-relaxed text-ink-muted">
-            <Markdown content={saved.assessment.result} />
-          </div>
-          <div className="mt-6">
-            <ButtonLink href="/chat" variant="primary">
-              {company.plan.plan.openChat}
-            </ButtonLink>
-          </div>
-        </section>
+        <div className="space-y-6">
+          <section className="rounded-card border border-line bg-bg-elevated p-6 shadow-sm">
+            <div className="text-[0.9375rem] leading-relaxed text-ink-muted">
+              <Markdown content={saved.assessment.result} />
+            </div>
+            <div className="mt-6">
+              <ButtonLink href="/chat" variant="primary">
+                {company.plan.plan.openChat}
+              </ButtonLink>
+            </div>
+          </section>
+          {/* The assessment is a read on the business; a plan is committed work.
+              It is offered here and built only if this button is pressed. */}
+          <GenerateActionPlan />
+        </div>
       ) : (
         <section className="rounded-card border border-line bg-bg-elevated p-6 shadow-sm">
           <h2 className="font-display text-lg font-bold text-ink">No plan yet</h2>

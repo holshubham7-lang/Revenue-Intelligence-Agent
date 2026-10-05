@@ -18,7 +18,18 @@ export const metadata: Metadata = {
 /** The callback writes a human-readable reason here; it is single-use. */
 const OAUTH_ERROR_COOKIE = "revops_oauth_error";
 
-/** Only codes this page knows how to describe are shown verbatim. */
+/**
+ * Only codes this page knows how to describe are shown verbatim.
+ *
+ * Must stay in step with every `code` the auth service can put in the query
+ * string. A code missing from this set is not merely shown with generic wording
+ * — `showError` goes false, so the page renders the form with **no message at
+ * all** and a signed-in visitor is redirected onward. That turns a real
+ * misconfiguration into a button that appears to do nothing, which is the
+ * hardest kind of auth bug to report: the user cannot see the reason and the
+ * service logs nothing either. `relay_expired` and `relay_misconfigured` are the
+ * two the cross-origin relay adds (see api/src/auth/oauth-relay.ts).
+ */
 const KNOWN_ERRORS = new Set([
   "access_denied",
   "provider_error",
@@ -28,6 +39,8 @@ const KNOWN_ERRORS = new Set([
   "account_blocked",
   "not_configured",
   "internal_error",
+  "relay_expired",
+  "relay_misconfigured",
 ]);
 
 const ERROR_COPY: Record<string, string> = {
@@ -43,6 +56,10 @@ const ERROR_COPY: Record<string, string> = {
   account_blocked: "This account has been blocked. Contact support.",
   not_configured: "That sign-in method isn't configured on this deployment.",
   internal_error: "Couldn't complete sign-in. Please try again in a moment.",
+  relay_expired:
+    "That sign-in link had already been used, or it expired before it arrived. Please start again.",
+  relay_misconfigured:
+    "Social sign-in isn't set up correctly on this deployment. Please contact support.",
 };
 
 /**

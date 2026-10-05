@@ -84,7 +84,13 @@ const STATE_TTL_SECONDS = 600; // 10 minutes is plenty for a login round trip
 const MAX_STATE_BYTES = 2048;
 
 /** Internal paths an OAuth callback may return to. No absolute URLs. */
-const RETURN_TO_ALLOWLIST = ["/company", "/chat", "/data", "/company/action-plan"];
+const RETURN_TO_ALLOWLIST = [
+  "/company",
+  "/chat",
+  "/data",
+  "/account",
+  "/company/action-plan",
+];
 
 function requiredEnv(name: string): string {
   const value = process.env[name];

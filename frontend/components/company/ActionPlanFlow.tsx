@@ -289,7 +289,7 @@ export function ActionPlanFlow({
             )}
           </Button>
           {hadData ? (
-            <Button variant="ghost" disabled={retrying} onClick={() => router.push("/data")}>
+            <Button variant="ghost" disabled={retrying} onClick={() => router.push("/chat")}>
               {company.plan.questions.backToData}
             </Button>
           ) : null}

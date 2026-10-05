@@ -121,12 +121,19 @@ export type ChatTurn = {
 const maxHistory = 8;
 
 /**
- * Prepends the company's profile and (when present) its onboarding assessment
- * so replies stay grounded in this business rather than generic advice.
+ * Prepends the company's profile, (when present) its onboarding assessment, and
+ * (when present) the reports it has shared, so replies stay grounded in this
+ * business rather than generic advice.
+ *
+ * `dataset` is the rendered form of the company's analysed reports, passed in by
+ * the caller because reading them is a database read and this module must stay
+ * free of one. It is the difference between answering "which deals went cold?"
+ * from the file the user just shared and answering it from general advice about
+ * deals going cold.
  */
-function buildGrounding(company: CompanyDoc): string {
+function buildGrounding(company: CompanyDoc, dataset?: string): string {
   const parts = [
-    "You are the Revenue Intelligence assistant for the company below. Ground every answer in this profile and its assessment, and be specific and practical.",
+    "You are the Revenue Intelligence assistant for the company below. Ground every answer in this profile, its assessment, and any reports it has shared — and be specific and practical.",
     "",
     "Company profile:",
     buildCompanyProfile(company),
@@ -136,6 +143,21 @@ function buildGrounding(company: CompanyDoc): string {
   if (assessment) {
     parts.push("", "Onboarding assessment:", assessment.slice(0, 6000));
   }
+
+  const shared = dataset?.trim();
+  if (shared) {
+    parts.push(
+      "",
+      "Reports this company has shared. These are the figures and the analysis of them below — answer questions about the data from these, quote specific numbers, and say so plainly when a question cannot be answered from what is here rather than guessing.",
+      shared,
+    );
+  } else {
+    parts.push(
+      "",
+      "This company has not shared a report yet. If a question can only be answered from its data, say what report would answer it instead of inventing an answer.",
+    );
+  }
+
   return parts.join("\n");
 }
 
@@ -144,9 +166,10 @@ export function buildChatMessages(
   company: CompanyDoc,
   content: string,
   history: ChatTurn[] = [],
+  dataset?: string,
 ): FoundryMessage[] {
   const messages: FoundryMessage[] = [
-    { role: "system", content: buildGrounding(company) },
+    { role: "system", content: buildGrounding(company, dataset) },
   ];
   for (const turn of history.slice(-maxHistory)) {
     messages.push({ role: turn.role, content: turn.content });
@@ -163,8 +186,9 @@ export async function* streamChat(
   company: CompanyDoc,
   content: string,
   history: ChatTurn[] = [],
+  dataset?: string,
 ): AsyncGenerator<string, void, undefined> {
-  const response = await request(buildChatMessages(company, content, history), {
+  const response = await request(buildChatMessages(company, content, history, dataset), {
     stream: true,
   });
 

@@ -435,7 +435,6 @@ export const company = {
     items: [
       { key: "chat", label: "Chat", href: "/chat" },
       { key: "company", label: "Company profile", href: "/company" },
-      { key: "dataSources", label: "Data sources", href: "/data" },
     ],
   },
   header: {
@@ -443,6 +442,93 @@ export const company = {
     closeLabel: "Close menu",
     workspaceLabel: "Workspace",
     upgradeLabel: "Upgrade to Premium",
+    /* The account menu the name opens. Two destinations only: the settings for
+       the person signed in, and signing out. The company profile is deliberately
+       not here — it is a workspace record rather than something about the user,
+       so it stays in the sidebar where the rest of the workspace navigation is,
+       and one dropdown item cannot mean two different "profile" screens. */
+    account: {
+      label: "Account menu",
+      settingsLabel: "Account settings",
+    },
+  },
+
+  /*
+   * Account settings — the person, not the company.
+   *
+   * Reached from the header menu rather than the sidebar. Everything on this page
+   * is about the signed-in user: what they are called, how they sign in, and the
+   * password where they have one. The company record stays on `/company`, which
+   * is a different thing with a different owner — conflating them was what made
+   * the old menu item ambiguous.
+   */
+  account: {
+    meta: {
+      title: "Account settings",
+      description: "Update your name, review how you sign in, and change your password.",
+    },
+    eyebrow: "Your account",
+    title: "Account settings",
+    subtitle:
+      "Manage the details we hold about you. Your reports, conversations, and company profile are unaffected by anything here.",
+    profile: {
+      title: "Profile",
+      body: "This is the name your assistant greets you by and the name on your replies.",
+      nameLabel: "Full name",
+      namePlaceholder: "e.g. Jane Cooper",
+      saveLabel: "Save name",
+      savingLabel: "Saving…",
+      savedLabel: "Your name has been updated.",
+      emptyLabel: "Enter your name before saving.",
+      unchangedLabel: "That's the name you already have.",
+    },
+    password: {
+      title: "Password",
+      body: "Use a password you don't use anywhere else. Changing it signs out your other devices.",
+      currentLabel: "Current password",
+      currentPlaceholder: "Your current password",
+      newLabel: "New password",
+      newPlaceholder: "At least 8 characters",
+      confirmLabel: "Confirm new password",
+      confirmPlaceholder: "Type the new password again",
+      submitLabel: "Update password",
+      submittingLabel: "Updating…",
+      successLabel: "Your password has been updated. Other devices have been signed out.",
+      currentRequiredLabel: "Enter your current password.",
+      newRequiredLabel: "Enter a new password.",
+      newTooShortLabel: "Your new password must be at least 8 characters.",
+      newTooLongLabel: "Your new password must be 128 characters or fewer.",
+      mismatchLabel: "Those passwords don't match.",
+      wrongCurrentLabel: "That isn't your current password.",
+      /* Social accounts have no password to change, and pretending otherwise
+         would invite the user to set one we then cannot enforce. */
+      socialNote:
+        "You signed in with a work account, so there's no password to change here.",
+      changedElsewhereLabel: "Your password was changed somewhere else. Please sign in again.",
+    },
+    details: {
+      title: "Account details",
+      body: "How you sign in, and what we hold about this account.",
+      avatarLabel: "Avatar",
+      emailLabel: "Email",
+      providerLabel: "Sign-in method",
+      verifiedLabel: "Email verified",
+      verifiedYesLabel: "Yes",
+      verifiedNoLabel: "Not yet",
+      memberSinceLabel: "Member since",
+      linkedLabel: "Linked sign-ins",
+      linkedHint: "Sign in with any of these and you'll land in this same account.",
+      passwordProviderLabel: "Email & password",
+      providerLabels: {
+        google: "Google",
+        microsoft: "Microsoft",
+        linkedin: "LinkedIn",
+      },
+      unknownDateLabel: "—",
+      workspaceLabel: "Workspace",
+      workspaceBody: "Your company details live with the workspace, not with your account.",
+      workspaceCta: "Open company profile",
+    },
   },
   page: {
     eyebrow: "Welcome to Revenue Intelligence",
@@ -509,7 +595,7 @@ export const company = {
         title: "Share your data",
         body: "Upload your sales, marketing, operations, and customer success reports — or any one of them — so we can find where revenue is leaking.",
         cta: "Share your data",
-        href: "/data",
+        href: "/chat",
       },
       {
         icon: "target",
@@ -643,7 +729,23 @@ export const company = {
       yourDataIsSaved: "Your uploads are analysed and saved.",
       retry: "Try again",
       retrying: "Asking the engine…",
-      backToData: "Back to my data",
+      backToData: "Back to my chat",
+    },
+    /**
+     * The opt-in step under a finished assessment.
+     *
+     * An action plan is committed work, so it is only ever built once the user
+     * asks for it. This copy is the whole of that offer and it says so plainly:
+     * someone who has just read their assessment should be able to tell that
+     * nothing was quietly created on their behalf.
+     */
+    generate: {
+      title: "Turn this into an action plan?",
+      body: "The assessment is a read on where revenue is leaking. An action plan turns it into prioritised work — what to do, who owns it, and how you'll know it worked. Nothing is created until you ask for it.",
+      cta: "Generate my action plan",
+      submitting: "Building your plan…",
+      decline: "Not yet — keep asking my agent",
+      error: "Couldn't build your action plan. Please try again.",
     },
     errors: {
       network: "We couldn't reach the service. Check your connection and try again.",
@@ -730,9 +832,68 @@ export const company = {
       "AI-powered insights help you make better decisions. Verify critical information when needed.",
     placeholder: "Ask about your revenue, forecast, or next best actions…",
     sendLabel: "Send message",
+    attachLabel: "Attach a report",
     thinkingPhases: ["Thinking", "Preparing response"],
     errorTitle: "We hit a snag",
     retryLabel: "Try again",
+
+    /*
+     * The note a company lands on when it first reaches chat.
+     *
+     * Company creation now ends here rather than on the upload screen, so the
+     * very first thing to say is what chat can do and what it needs: share a
+     * report and the answers are grounded in it. It is shown only when no report
+     * has been analysed, because the moment one is the conversation is already
+     * doing this and the note is just noise.
+     */
+    start: {
+      title: "Welcome — let's find where your revenue is leaking",
+      body:
+        "Upload your sales, marketing, operations, or customer success reports and I'll read every row. Then ask me anything about them and I'll answer from your actual numbers.",
+      cta: "Upload a report",
+      /* Second path for the same goal: the interview asks for the same ground truth in prose. */
+      interviewLabel: "Answer a few questions instead",
+    },
+
+    /**
+     * The optional interview, offered as a card rather than a gate.
+     *
+     * The assessment was previously the only way into chat, which made it
+     * unavoidable and blocked the faster route — sharing a file. It is still
+     * worth having, because the answers sharpen the plan, so it stays one click
+     * away in the empty state and nothing depends on it.
+     */
+    interview: {
+      startLabel: "Get a tailored assessment",
+      startHint: "Six questions about your business — about two minutes.",
+    },
+
+    /**
+     * The files panel: the data sources, relocated into the conversation.
+     *
+     * A right-hand column on desktop and a drawer below `xl`, because a table of
+     * columns mapped for confirmation cannot be read in a phone-width column and
+     * a panel that cannot be read is worse than no panel.
+     */
+    files: {
+      label: "Your reports",
+      openLabel: "Open your reports",
+      closeLabel: "Close your reports",
+      addLabel: "Add a report",
+      empty: "No reports yet",
+      emptyHint: "Add a report and I can answer questions about it.",
+      constraints:
+        "Accepted formats: .csv, .tsv, .xlsx — up to 25 MB each. Every file is checked before it's stored, and none of them are used to train a model.",
+      rowsLabel: "{count} rows",
+      analysing: "Analysing",
+      mapped: "Mapped",
+      failed: "Couldn't be read",
+      removeLabel: "Remove {name}",
+      removeConfirm: "Remove {name}? I'll stop using it in my answers.",
+      removing: "Removing…",
+      removeFailed: "Couldn't remove that report. Please try again.",
+      dismiss: "Dismiss",
+    },
     suggestions: [
       "What does my forecast look like this quarter?",
       "Where should I focus this month?",
@@ -774,7 +935,9 @@ export const company = {
     errorTitle: "We hit a snag",
     retryLabel: "Try again",
     retryAssessmentLabel: "Retry assessment",
-    errorLoad: "The service could not prepare your questions right now.",
+    /** Closes the interview and returns to the chat. See `OnboardingChat`. */
+  dismissLabel: "Back to chat",
+  errorLoad: "The service could not prepare your questions right now.",
     errorSubmit: "The service could not build your assessment right now.",
   },
 } as const;
