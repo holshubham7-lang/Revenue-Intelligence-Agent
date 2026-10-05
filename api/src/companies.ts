@@ -48,7 +48,7 @@ export type CompanyDoc = CompanyInput & {
  * Flat, all-strings shape used to seed the client-side company form.
  * Stored `null`s collapse to `""` so a controlled input is never `null`.
  *
- * Re-exported from `@/lib/contracts` so client components can import the shape
+ * Re-exported from `./contracts` so client components can import the shape
  * without pulling this module — and its `mongodb` import — into the client graph.
  */
 export type { CompanyFormValues } from "./contracts";

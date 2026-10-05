@@ -143,12 +143,12 @@ export function CompanyForm({
         onSaved?.();
         router.refresh();
       } else {
-        // Company saved — ask for data next. The funnel is
-        // company → data → questions → plan, and the questionnaire is much
-        // sharper once the agent can see the actual pipeline, so the upload
-        // screen comes first. It offers its own skip, which is what routes to
-        // the questions for anyone who would rather not share a file.
-        router.push("/data");
+        /* Company saved — straight to the chat. The upload used to be a separate
+           step between here and the assistant, so a company that registered was
+           told to go and find a file before it could ask anything. Upload is now
+           something the chat offers, so registration ends where the work happens
+           and the first screen explains what to share. */
+        router.push("/chat");
       }
     } catch (err) {
       const sentinels = new Set(["request_failed", "csrf_failed"]);

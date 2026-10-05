@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
+  ChevronDown,
   Crown,
-  Database,
-  LineChart,
   LogOut,
   Menu,
   MessageCircle,
-  Settings,
-  Sparkles,
+  UserCog,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -27,10 +25,6 @@ import { cn } from "@/lib/utils";
 const NAV_ICONS: Record<string, LucideIcon> = {
   chat: MessageCircle,
   company: Building2,
-  forecast: LineChart,
-  findings: Sparkles,
-  dataSources: Database,
-  settings: Settings,
 };
 
 /** First letters of the first two words, uppercased — "Jane Doe" → "JD". */
@@ -86,17 +80,9 @@ function UserAvatar({ name, image }: { name: string; image?: string }) {
 
 function SidebarNav({
   onNavigate,
-  onSignOut,
-  signingOut,
-  signOutError,
-  onSignOutErrorDismiss,
   chatHistory,
 }: {
   onNavigate?: () => void;
-  onSignOut: () => void;
-  signingOut: boolean;
-  signOutError: string | null;
-  onSignOutErrorDismiss: () => void;
   chatHistory?: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -162,29 +148,6 @@ function SidebarNav({
           </div>
         ) : null}
       </nav>
-
-      {/* Footer of the sidebar — sign out */}
-      <div className="border-t border-line px-3 py-4">
-        <button
-          type="button"
-          onClick={onSignOut}
-          disabled={signingOut}
-          className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-control border border-negative/30 bg-negative-soft px-3 text-sm font-semibold text-negative transition-colors duration-200 ease-out hover:bg-negative/10 active:bg-negative/20 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <LogOut className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
-          {signingOut ? nav.signingOutLabel : nav.signOutLabel}
-        </button>
-        {signOutError ? (
-          <button
-            type="button"
-            role="alert"
-            onClick={onSignOutErrorDismiss}
-            className="mt-2 w-full cursor-pointer rounded-control px-1 py-1 text-left text-xs leading-relaxed text-negative transition-colors duration-200 ease-out hover:bg-negative/10"
-          >
-            {signOutError}
-          </button>
-        ) : null}
-      </div>
     </div>
   );
 }
@@ -221,15 +184,35 @@ export function CompanyShell({
   chatHistory?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
+  /* Escape closes whichever of the two overlays is open. The drawer used to own
+     this listener alone, but a user with the account menu open is on the same
+     page and pressing Escape has to do something rather than nothing. */
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    if (!open && !accountOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      setAccountOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, accountOpen]);
+
+  /* Any route change closes the menu, so it can't be left open over a new page.
+     Compared during render rather than in an effect: the state is stale the
+     moment the pathname differs, and deriving it here is the same adjustment
+     `ChatShell` makes when the page hands it another conversation. */
+  const pathname = usePathname();
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (accountOpen && menuPath !== pathname) {
+    setAccountOpen(false);
+    setMenuPath(pathname);
+  }
 
   /**
    * Secure sign-out.
@@ -289,11 +272,96 @@ export function CompanyShell({
               <Crown className="size-4" strokeWidth={1.75} aria-hidden="true" />
               {company.header.upgradeLabel}
             </Button>
-            <div className="flex items-center gap-2.5 rounded-full border border-line bg-bg-elevated py-1.5 pr-4 pl-1.5 shadow-inner">
-              <UserAvatar name={user.name} image={user.profileImage} />
-              <span className="hidden max-w-44 truncate text-sm font-semibold text-ink md:block">
-                {user.name}
-              </span>
+            <div className="relative" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuPath(pathname);
+                  setAccountOpen((was) => !was);
+                }}
+                aria-haspopup="menu"
+                aria-expanded={accountOpen}
+                aria-label={`${company.header.account.label} — ${user.name}`}
+                className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border border-line bg-bg-elevated py-1.5 pr-3 pl-1.5 shadow-inner transition-colors duration-200 ease-out hover:bg-bg-muted"
+              >
+                <UserAvatar name={user.name} image={user.profileImage} />
+                <span className="hidden max-w-44 truncate text-sm font-semibold text-ink md:block">
+                  {user.name}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-4 shrink-0 text-ink-subtle transition-transform duration-200 ease-out",
+                    accountOpen && "rotate-180 text-brand",
+                  )}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {accountOpen ? (
+                <>
+                  {/* Clicking anywhere else dismisses it, including the header it
+                      sits in, so the menu can't be left open over the page. */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setAccountOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    role="menu"
+                    aria-label={company.header.account.label}
+                    className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-card border border-line bg-bg-elevated shadow-lg"
+                  >
+                    <div className="flex items-center gap-2.5 border-b border-line px-3 py-3">
+                      <UserAvatar name={user.name} image={user.profileImage} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">{user.name}</p>
+                        <p className="truncate text-xs text-ink-subtle">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="p-1.5">
+                      {/* Settings for the person, not the company. The company
+                          profile is a workspace record and stays in the sidebar;
+                          putting both "profiles" in one menu made the item mean
+                          whichever screen the reader happened to expect. */}
+                      <Link
+                        href="/account"
+                        role="menuitem"
+                        onClick={() => setAccountOpen(false)}
+                        className="flex min-h-11 items-center gap-2.5 rounded-control px-3 text-sm font-medium text-ink-muted transition-colors duration-200 ease-out hover:bg-bg-muted hover:text-ink"
+                      >
+                        <UserCog className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                        {company.header.account.settingsLabel}
+                      </Link>
+                    </div>
+
+                    <div className="border-t border-line p-1.5">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleSignOut}
+                        disabled={signingOut}
+                        className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-control px-3 text-sm font-semibold text-negative transition-colors duration-200 ease-out hover:bg-negative-soft disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <LogOut className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                        {signingOut ? company.nav.signingOutLabel : company.nav.signOutLabel}
+                      </button>
+                    </div>
+
+                    {signOutError ? (
+                      <button
+                        type="button"
+                        role="alert"
+                        onClick={() => setSignOutError(null)}
+                        className="mx-1.5 mb-1.5 w-[calc(100%-0.75rem)] cursor-pointer rounded-control px-3 py-2 text-left text-xs leading-relaxed text-negative transition-colors duration-200 ease-out hover:bg-negative-soft"
+                      >
+                        {signOutError}
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
@@ -303,13 +371,7 @@ export function CompanyShell({
       <div className="flex min-h-0 flex-1">
         {/* Static sidebar (desktop) */}
         <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-line bg-bg-elevated/60 lg:block">
-          <SidebarNav
-            onSignOut={handleSignOut}
-            signingOut={signingOut}
-            signOutError={signOutError}
-            onSignOutErrorDismiss={() => setSignOutError(null)}
-            chatHistory={chatHistory}
-          />
+          <SidebarNav chatHistory={chatHistory} />
         </aside>
 
         {/* Slide-over drawer (mobile) */}
@@ -344,14 +406,7 @@ export function CompanyShell({
                   <X className="size-5" strokeWidth={1.75} aria-hidden="true" />
                 </button>
               </div>
-              <SidebarNav
-                onNavigate={() => setOpen(false)}
-                onSignOut={handleSignOut}
-                signingOut={signingOut}
-                signOutError={signOutError}
-                onSignOutErrorDismiss={() => setSignOutError(null)}
-                chatHistory={chatHistory}
-              />
+              <SidebarNav onNavigate={() => setOpen(false)} chatHistory={chatHistory} />
             </div>
           </div>
         )}

@@ -21,7 +21,113 @@ export type SigninResult =
   | { ok: true; data: SigninInput }
   | { ok: false; fields: Partial<Record<"email" | "password", string>> };
 
+export type ProfileUpdateInput = {
+  name: string;
+};
+
+export type ProfileUpdateResult =
+  | { ok: true; data: ProfileUpdateInput }
+  | { ok: false; fields: Partial<Record<"name", string>> };
+
+export type PasswordChangeInput = {
+  currentPassword: string;
+  newPassword: string;
+  /** Checked here so a mismatch never reaches the database. */
+  confirmPassword: string;
+};
+
+export type PasswordChangeResult =
+  | { ok: true; data: PasswordChangeInput }
+  | {
+      ok: false;
+      fields: Partial<Record<"currentPassword" | "newPassword" | "confirmPassword", string>>;
+    };
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Pulls a string field out of an untrusted JSON body, or undefined. */
+function readField(raw: unknown, field: string): unknown {
+  return typeof raw === "object" && raw !== null && field in raw
+    ? (raw as Record<string, unknown>)[field]
+    : undefined;
+}
+
+/**
+ * Server-side validation for a profile name change.
+ *
+ * The same length bounds as signup, so a name saved here can never be one that
+ * signup would have rejected — otherwise the two paths would disagree about what
+ * a valid name is.
+ */
+export function validateProfileUpdate(raw: unknown): ProfileUpdateResult {
+  const fields: Partial<Record<"name", string>> = {};
+
+  const name = readField(raw, "name");
+
+  if (typeof name !== "string" || name.trim().length < 2) {
+    fields.name = "Name must be at least 2 characters.";
+  } else if (name.trim().length > 80) {
+    fields.name = "Name must be 80 characters or fewer.";
+  }
+
+  if (Object.keys(fields).length > 0) return { ok: false, fields };
+
+  return { ok: true, data: { name: (name as string).trim() } };
+}
+
+/**
+ * Server-side validation for a password change.
+ *
+ * The same 8–128 character policy signup applies, so a user cannot sign up
+ * under one rule and then set a password the sign-in form would later refuse.
+ * The confirmation is compared here rather than in the client: it is the last
+ * point where a typo is still recoverable, and a client-side-only check would
+ * let a direct request set a password the user never typed twice.
+ */
+export function validatePasswordChange(raw: unknown): PasswordChangeResult {
+  const fields: Partial<Record<"currentPassword" | "newPassword" | "confirmPassword", string>> = {};
+
+  const currentPassword = readField(raw, "currentPassword");
+  const newPassword = readField(raw, "newPassword");
+  const confirmPassword = readField(raw, "confirmPassword");
+
+  if (typeof currentPassword !== "string" || currentPassword === "") {
+    fields.currentPassword = "Current password is required.";
+  } else if (currentPassword.length > 128) {
+    fields.currentPassword = "Current password must be 128 characters or fewer.";
+  }
+
+  if (typeof newPassword !== "string" || newPassword === "") {
+    fields.newPassword = "Password is required.";
+  } else if (newPassword.length < 8) {
+    fields.newPassword = "Password must be at least 8 characters.";
+  } else if (newPassword.length > 128) {
+    fields.newPassword = "Password must be 128 characters or fewer.";
+  }
+
+  /* Only worth comparing once both halves are real strings, otherwise a missing
+     field reports two errors for one mistake. */
+  if (
+    typeof newPassword === "string" &&
+    typeof confirmPassword === "string" &&
+    newPassword !== confirmPassword
+  ) {
+    fields.confirmPassword = "Passwords do not match.";
+  } else if (typeof confirmPassword !== "string" || confirmPassword === "") {
+    fields.confirmPassword = "Confirm your new password.";
+  }
+
+  if (Object.keys(fields).length > 0) return { ok: false, fields };
+
+  return {
+    ok: true,
+    data: {
+      currentPassword: currentPassword as string,
+      newPassword: newPassword as string,
+      confirmPassword: confirmPassword as string,
+    },
+  };
+}
 
 /**
  * Server-side validation for password account creation.

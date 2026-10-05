@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, RefreshCcw, Sparkles } from "lucide-react";
+import { AlertCircle, Bot, FolderOpen, RefreshCcw } from "lucide-react";
 
 import { ChatMessage, type ChatMessageData } from "@/components/chat/ChatMessage";
 import { MessageComposer } from "@/components/chat/MessageComposer";
@@ -29,6 +29,16 @@ type ChatViewProps = {
   threadId?: string | null;
   /** Called with the id the server saved under, when a reply creates one. */
   onThread?: (threadId: string) => void;
+  /**
+   * Reports the user has already shared, as the server counted them. Drives the
+   * first-run note: a company with no report is told to add one, and that note
+   * must not survive the upload that answers it.
+   */
+  reportCount?: number;
+  /** Opens the reports panel, which is where a file is actually chosen. */
+  onOpenFiles?: () => void;
+  /** Runs the assessment interview, offered alongside the upload. */
+  onStartInterview?: () => void;
 };
 
 /**
@@ -38,7 +48,14 @@ type ChatViewProps = {
  * server saves both turns under the conversation's id and reports that id back, so
  * the same conversation can be reopened from the sidebar after a refresh.
  */
-export function ChatView({ initialMessages, threadId = null, onThread }: ChatViewProps) {
+export function ChatView({
+  initialMessages,
+  threadId = null,
+  onThread,
+  reportCount = 0,
+  onOpenFiles,
+  onStartInterview,
+}: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessageData[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -247,15 +264,50 @@ export function ChatView({ initialMessages, threadId = null, onThread }: ChatVie
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-4 pb-10 text-center">
-            <span className="inline-flex size-14 items-center justify-center rounded-card bg-brand-soft text-brand">
-              <Sparkles className="size-7" strokeWidth={1.5} aria-hidden="true" />
+            {/* The agent, rather than a sparkle. A generic sparkle said "something
+                clever is happening"; a robot says who is answering, which is the
+                question a first-run user actually has on this screen. */}
+            <span className="relative inline-flex size-16 items-center justify-center rounded-card bg-brand-soft text-brand">
+              <Bot className="size-8" strokeWidth={1.5} aria-hidden="true" />
             </span>
             <h1 className="mt-5 font-display text-2xl font-bold tracking-tight text-ink">
               {chat.title}
             </h1>
             <p className="mt-2 max-w-md text-[0.9375rem] leading-relaxed text-ink-muted">
-              {chat.subtitle}
+              {reportCount > 0 ? chat.subtitle : chat.start.body}
             </p>
+
+            {/* The first-run note, and only while it is true. A company that has
+                shared a report gets the suggestions instead: the note would be
+                describing something already done. */}
+            {reportCount === 0 && onOpenFiles ? (
+              <div className="mt-6 w-full max-w-xl rounded-card border border-line bg-bg-elevated p-5 text-left shadow-sm">
+                <p className="font-display text-base font-bold text-ink">{chat.start.title}</p>
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onOpenFiles}
+                    className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-control bg-brand px-4 text-sm font-semibold text-brand-fg transition-colors hover:bg-brand-hover"
+                  >
+                    <FolderOpen className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                    {chat.start.cta}
+                  </button>
+                  {onStartInterview ? (
+                    <button
+                      type="button"
+                      onClick={onStartInterview}
+                      className="inline-flex min-h-11 cursor-pointer items-center rounded-control border border-line px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-bg-muted hover:text-ink"
+                    >
+                      {chat.start.interviewLabel}
+                    </button>
+                  ) : null}
+                </div>
+                {onStartInterview ? (
+                  <p className="mt-2.5 text-xs text-ink-subtle">{chat.interview.startHint}</p>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="mt-8 grid w-full max-w-2xl gap-2.5 sm:grid-cols-2">
               {chat.suggestions.map((suggestion) => (
                 <button
@@ -316,6 +368,9 @@ export function ChatView({ initialMessages, threadId = null, onThread }: ChatVie
             label={chat.sendLabel}
             disabled={phase !== "idle"}
             hint={chat.footnote}
+            {...(onOpenFiles
+              ? { onAttach: onOpenFiles, attachLabel: chat.attachLabel }
+              : {})}
           />
         </div>
       </div>

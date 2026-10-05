@@ -90,13 +90,22 @@ class AzureBlobStore implements BlobStore {
   readonly label = "azure";
 
   private readonly account: string;
-  private readonly key: string;
+  /**
+   * The raw decoded account key.
+   *
+   * This must stay binary. An account key is random bytes, so it is almost never
+   * valid UTF-8: running it through `toString("utf8")` replaces the invalid
+   * sequences with U+FFFD, which silently turns 64 bytes into a 115-byte string.
+   * Every signature is then computed over the wrong key and storage answers
+   * `AuthenticationFailed` — with a string-to-sign that looks perfectly correct.
+   */
+  private readonly key: Buffer;
   private readonly container: string;
   private readonly token: string;
 
   constructor(account: string, key: string, container: string, token: string) {
     this.account = account;
-    this.key = Buffer.from(key, "base64").toString("utf8");
+    this.key = Buffer.from(key, "base64");
     this.container = container;
     this.token = token;
   }
@@ -114,6 +123,9 @@ class AzureBlobStore implements BlobStore {
    *   - **Every** `x-ms-*` header actually sent must appear in the canonicalised
    *     headers block, lowercased and sorted. Sending `x-ms-blob-type` but
    *     leaving it out of the signature is the classic version of this bug.
+   *   - Nothing else does. `Content-Type` is *not* a canonicalised header; it
+   *     belongs in the standard headers block below and nowhere else. Adding it
+   *     to both places is also wrong.
    *   - The canonicalised resource is the URL path, `/account/container/blob`. The
    *     account appears once, at the front; it is not repeated after `account/`.
    */
@@ -132,14 +144,18 @@ class AzureBlobStore implements BlobStore {
     // `x-ms-blob-type` is meaningful only on a write. Sending it on a GET would
     // need signing too and buys nothing.
     if (verb === "PUT") headers["x-ms-blob-type"] = "BlockBlob";
-    // Signed and sent together, or not at all — see the note on Content-Type
-    // below.
+    // Content-Type is signed in the standard headers block, not here.
     if (contentType) headers["Content-Type"] = contentType;
 
-    const canonicalHeaders = Object.keys(headers)
-      .map((name) => name.toLowerCase())
-      .sort()
-      .map((name) => `${name}:${headers[name]}`)
+    // Canonicalisation lowercases names, so the lookup has to be case-insensitive
+    // too — `headers[name]` with an already-lowercased `name` yields `undefined`
+    // for `Content-Type` and signs the literal text `content-type:undefined`.
+    // Only `x-ms-*` headers belong in this block.
+    const canonicalHeaders = Object.entries(headers)
+      .filter(([name]) => name.toLowerCase().startsWith("x-ms-"))
+      .map(([name, value]) => [name.toLowerCase(), value] as const)
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+      .map(([name, value]) => `${name}:${value}`)
       .join("\n");
 
     const canonicalResource = `/${this.account}/${this.container}/${blobPath}`;
@@ -150,9 +166,9 @@ class AzureBlobStore implements BlobStore {
       "", // Content-Language
       length ? String(length) : "",
       "", // Content-MD5
-      // Content-Type belongs in the standard headers block, and whatever is sent
-      // here must match what goes on the wire. Signing "" while sending a real
-      // Content-Type is a SignatureDoesNotMatch.
+      // Content-Type belongs in the standard headers block and nowhere else, and
+      // whatever is signed here must match what goes on the wire. Signing "" while
+      // sending a real Content-Type is a SignatureDoesNotMatch.
       contentType,
       "", // Date, superseded by x-ms-date
       "", // If-Modified-Since

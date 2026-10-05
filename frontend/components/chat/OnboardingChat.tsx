@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, RefreshCcw } from "lucide-react";
+import { AlertCircle, RefreshCcw, X } from "lucide-react";
 
 import { AssessmentProgress } from "@/components/chat/AssessmentProgress";
 import { ChatMessage, type ChatMessageData } from "@/components/chat/ChatMessage";
@@ -40,7 +40,15 @@ async function readApiError(response: Response, fallback: string): Promise<strin
  * The welcome message is local; the questions come from the model, so the
  * interview stays tailored to the company without shipping a fixed list.
  */
-export function OnboardingChat() {
+/**
+ * Dismisses the interview and returns to the chat.
+ *
+ * The interview used to be the only way into `/chat`, so there was nothing to go
+ * back to. It is now an offer, and a user who shared a report and then opened
+ * this has to be able to close it and ask their actual question — the one the
+ * report answers.
+ */
+export function OnboardingChat({ onDismiss }: { onDismiss?: () => void }) {
   const router = useRouter();
 
   const [stage, setStage] = useState<Stage>("loading");
@@ -215,6 +223,19 @@ export function OnboardingChat() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {onDismiss ? (
+        <div className="flex shrink-0 justify-end border-b border-line px-4 py-2">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-control px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-bg-muted hover:text-ink"
+          >
+            <X className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+            {onboarding.dismissLabel}
+          </button>
+        </div>
+      ) : null}
+
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
           {stage === "loading" ? (

@@ -17,6 +17,7 @@ import {
   generateDataQuestions,
   generateOnboardingQuestions,
   QuestionGenerationError,
+  renderDataset,
 } from "../agent/analyze";
 import { generateActionPlan } from "../agent/plan";
 import {
@@ -47,15 +48,17 @@ const MAX_THREAD_ID_LENGTH = 64;
 /**
  * The onboarding assessment interview, and the action plan it produces.
  *
- * `GET /api/company/action-plan` returns the newest plan, or the questions to ask
+* `GET /api/company/action-plan` returns the newest plan, or the questions to ask
  * if there isn't one yet. `POST` generates it from whatever exists — a data
- * profile if a file was uploaded, plus the user's answers — then indexes it in
- * the knowledge base and advances onboarding to `plan_ready`.
+ * profile if a file was uploaded, plus the user's answers — then indexes it in the
+ * knowledge base and advances onboarding to `plan_ready`.
  *
  * Both paths accept the questions/answers so a user who skipped the upload still
- * gets a plan from the original profile interview. The plan is versioned, so
- * regenerating after fixing their data keeps the earlier plan and both stay
- * retrievable.
+ * gets a plan from the original profile interview. Posting neither is the opt-in
+ * path: the plan is built from the assessment already on the company record,
+ * which is how a user who finished the chat interview but never asked for a plan
+ * gets one. The plan is versioned, so regenerating after fixing their data keeps
+ * the earlier plan and both stay retrievable.
  */
 @Controller("company/action-plan")
 export class ActionPlanController {
@@ -105,10 +108,20 @@ export class ActionPlanController {
     const company = await this.requireCompany(user._id, "Finish your company profile first.");
 
     const body = await readJson<{ questions?: unknown; answers?: unknown }>(request);
-    const questions = asStringList(body.questions);
-    const answers = asStringList(body.answers);
+    const asked = asStringList(body.questions, MAX_QUESTIONS, MAX_ANSWER_LENGTH);
 
-    if (questions.length === 0) {
+    /* Two callers, one endpoint. The interview form posts the questions and
+       answers it collected; the opt-in panel under a finished assessment posts
+       nothing at all, because the interview it should be built from is already
+       on the company record. Resolving that here rather than in the client is
+       what lets the answers stay server-side: the opt-in path never sends them
+       back to the browser in order to send them straight back again. */
+    const interview =
+      asked.length > 0
+        ? { questions: asked, answers: asStringList(body.answers, MAX_QUESTIONS, MAX_ANSWER_LENGTH) }
+        : storedInterview(company);
+
+    if (!interview) {
       throw new ApiError(
         HttpStatus.BAD_REQUEST,
         "invalid_request",
@@ -126,8 +139,8 @@ export class ActionPlanController {
         company,
         profile: await latestProfile(company._id),
         dataset: context.files.length > 0 ? context : null,
-        questions,
-        answers,
+        questions: interview.questions,
+        answers: interview.answers,
         nowIso: new Date().toISOString(),
       });
 
@@ -398,10 +411,26 @@ export class ChatController {
       response.write(payload);
     };
 
+    /* The reports this company has shared, rendered into the grounding block.
+       Read before the stream opens so a database hiccup is logged against the
+       request rather than arriving as an empty reply, and read here rather than
+       inside `streamChat` so that module stays free of a database connection.
+       `renderDataset` is empty for a company with nothing analysed, and
+       `buildGrounding` then tells the model to say so rather than guess. */
+    let dataset = "";
+    try {
+      dataset = renderDataset(buildDatasetContext(await readyProfiles(company._id)));
+    } catch (error: unknown) {
+      console.error(
+        "chat: could not read the company's reports",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
     let answer = "";
 
     try {
-      for await (const token of streamChat(company, content, history)) {
+      for await (const token of streamChat(company, content, history, dataset)) {
         answer += token;
         send(`data: ${JSON.stringify({ token })}\n\n`);
       }
@@ -499,6 +528,26 @@ function asStringList(value: unknown, limit = 12, maxLength = 4000): string[] {
     .map((item) => item.trim())
     .filter((item) => item.length > 0 && item.length <= maxLength)
     .slice(0, limit);
+}
+
+/**
+ * The Q&A behind a stored assessment, when there is one to build a plan from.
+ *
+ * Answers are truncated to the questions they belong to. `asStringList` drops an
+ * over-long answer as unusable, and a plan whose answers have silently shifted up
+ * against their questions reads as though the model answered the wrong thing —
+ * so the pairing is held here, at the one place the two lists are combined.
+ */
+function storedInterview(
+  company: CompanyDoc,
+): { questions: string[]; answers: string[] } | null {
+  const stored = company.assessment;
+  if (!stored) return null;
+
+  const questions = asStringList(stored.questions, MAX_QUESTIONS, MAX_ANSWER_LENGTH);
+  if (questions.length === 0) return null;
+
+  return { questions, answers: asStringList(stored.answers, MAX_QUESTIONS, MAX_ANSWER_LENGTH).slice(0, questions.length) };
 }
 
 /**

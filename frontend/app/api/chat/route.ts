@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { buildDatasetContext, renderDataset } from "@/lib/agent/dataset";
 import { streamChat, type ChatTurn } from "@/lib/agent/foundry";
 import { csrfPasses } from "@/lib/auth/csrf";
 import { SESSION_COOKIE } from "@/lib/auth/session";
@@ -15,6 +16,7 @@ import {
   startChatThread,
   threadTitleFrom,
 } from "@/lib/data/chat";
+import { readyProfiles } from "@/lib/data/pipeline";
 import type { ChatMessageDoc } from "@/lib/data/types";
 
 const MAX_MESSAGE_LENGTH = 8000;
@@ -136,6 +138,22 @@ export async function POST(request: NextRequest) {
     console.error("chat: could not save the question", err instanceof Error ? err.message : err);
   }
 
+  /* The reports this company has shared, rendered into the grounding block.
+     Read here rather than inside `streamChat` so the module stays free of a
+     database connection, and read before the stream opens so a read failure is
+     logged against the request instead of arriving as an empty reply.
+     `renderDataset` is empty for a company with nothing analysed, and
+     `buildGrounding` tells the model to say so rather than guess. */
+  let dataset = "";
+  try {
+    dataset = renderDataset(buildDatasetContext(await readyProfiles(companyId)));
+  } catch (err) {
+    console.error(
+      "chat: could not read the company's reports",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const encoder = new TextEncoder();
   let answer = "";
 
@@ -145,7 +163,7 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(payload));
       };
       try {
-        for await (const token of streamChat(company, content, history)) {
+        for await (const token of streamChat(company, content, history, dataset)) {
           answer += token;
           send(`data: ${JSON.stringify({ token })}\n\n`);
         }

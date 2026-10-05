@@ -28,6 +28,21 @@ api/dist/
 *.tsbuildinfo
 admin/api/dist/
 
+# Local runtime state: uploaded workbooks and cached exports
+.data/
+
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Excel's lock file, present only while a .xlsx is open. It is a temp artefact of
+# the file being open, not part of the data set.
+~$*.xlsx
+
+# One-off database inspection/migration scripts written while debugging. They
+# read MONGODB_URI from the environment and are not part of the service.
+api/_*.mjs
+
+# Sample workbooks used to try a scenario out locally. They are real business
+# exports, not fixtures, so they stay out of the repository and out of history.
+use-case/

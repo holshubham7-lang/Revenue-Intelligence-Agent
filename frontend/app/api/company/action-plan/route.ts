@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { csrfPasses } from "@/lib/auth/csrf";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import { resolveSessionUser } from "@/lib/auth/user";
-import { advanceOnboardingStage, findCompanyByUserId } from "@/lib/companies";
+import { advanceOnboardingStage, findCompanyByUserId, type CompanyDoc } from "@/lib/companies";
 import { generateActionPlan } from "@/lib/agent/plan";
 import {
   buildDatasetContext,
@@ -20,6 +20,10 @@ import {
 
 export const runtime = "nodejs";
 
+/** Matches the interview limits `POST /api/agent/assess` accepted the answers under. */
+const MAX_QUESTIONS = 15;
+const MAX_ANSWER_LENGTH = 8000;
+
 /**
  * Reads or generates the company's action plan.
  *
@@ -29,9 +33,11 @@ export const runtime = "nodejs";
  * advances onboarding to `plan_ready`.
  *
  * Both paths accept the questions/answers so a user who skipped the upload still
- * gets a plan from the original profile interview. The plan is versioned, so
- * regenerating after fixing their data keeps the earlier plan and both are
- * retrievable.
+ * gets a plan from the original profile interview. Posting neither is the opt-in
+ * path: the plan is built from the assessment already on the company record,
+ * which is how a user who finished the chat interview but never asked for a plan
+ * gets one. The plan is versioned, so regenerating after fixing their data keeps
+ * the earlier plan and both stay retrievable.
  */
 
 function errorResponse(status: number, code: string, message: string) {
@@ -45,6 +51,26 @@ function asStringList(value: unknown, limit = 12, maxLength = 4000): string[] {
     .map((item) => item.trim())
     .filter((item) => item.length > 0 && item.length <= maxLength)
     .slice(0, limit);
+}
+
+/**
+ * The Q&A behind a stored assessment, when there is one to build a plan from.
+ *
+ * Answers are truncated to the questions they belong to. `asStringList` drops an
+ * over-long answer as unusable, and a plan whose answers have silently shifted up
+ * against their questions reads as though the model answered the wrong thing —
+ * so the pairing is held here, at the one place the two lists are combined.
+ */
+function storedInterview(
+  company: CompanyDoc,
+): { questions: string[]; answers: string[] } | null {
+  const stored = company.assessment;
+  if (!stored) return null;
+
+  const questions = asStringList(stored.questions, MAX_QUESTIONS, MAX_ANSWER_LENGTH);
+  if (questions.length === 0) return null;
+
+  return { questions, answers: asStringList(stored.answers, MAX_QUESTIONS, MAX_ANSWER_LENGTH).slice(0, questions.length) };
 }
 
 export async function GET(request: NextRequest) {
@@ -113,10 +139,20 @@ export async function POST(request: NextRequest) {
     return errorResponse(400, "invalid_request", "Invalid request body.");
   }
 
-  const questions = asStringList(body.questions);
-  const answers = asStringList(body.answers);
+  const asked = asStringList(body.questions, MAX_QUESTIONS, MAX_ANSWER_LENGTH);
 
-  if (questions.length === 0) {
+  // Two callers, one endpoint. The interview form posts the questions and answers
+  // it collected; the opt-in panel under a finished assessment posts nothing at
+  // all, because the interview it should be built from is already on the company
+  // record. Resolving that here rather than in the client is what lets the
+  // answers stay server-side: the opt-in path never sends them back to the
+  // browser in order to send them straight back again.
+  const interview =
+    asked.length > 0
+      ? { questions: asked, answers: asStringList(body.answers, MAX_QUESTIONS, MAX_ANSWER_LENGTH) }
+      : storedInterview(company);
+
+  if (!interview) {
     return errorResponse(400, "invalid_request", "There are no questions to build a plan from.");
   }
 
@@ -131,8 +167,8 @@ export async function POST(request: NextRequest) {
       company,
       profile: await latestProfile(company._id),
       dataset: context.files.length > 0 ? context : null,
-      questions,
-      answers,
+      questions: interview.questions,
+      answers: interview.answers,
       nowIso,
     });
 

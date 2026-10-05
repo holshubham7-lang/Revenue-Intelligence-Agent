@@ -10,6 +10,10 @@ type ChatShellProps = {
   /** Conversation opened on this page load, or null when it is a fresh chat. */
   threadId: string | null;
   messages: ChatMessageData[];
+  /** Reports already shared, and how to reach the panel that lists them. */
+  reportCount?: number;
+  onOpenFiles?: () => void;
+  onStartInterview?: () => void;
 };
 
 type Shown = {
@@ -35,7 +39,13 @@ type Shown = {
  * stream. So it is keyed, and the key moves when the page hands over another
  * conversation or the sidebar asks for a new one.
  */
-export function ChatShell({ threadId, messages }: ChatShellProps) {
+export function ChatShell({
+  threadId,
+  messages,
+  reportCount = 0,
+  onOpenFiles,
+  onStartInterview,
+}: ChatShellProps) {
   const [shown, setShown] = useState<Shown>(() => ({ key: 0, threadId, messages, from: messages }));
 
   /* Compared by identity, not by id: the id is absent from both sides while a new
@@ -72,7 +82,15 @@ export function ChatShell({ threadId, messages }: ChatShellProps) {
 
   return (
     <div className="h-full w-full">
-      <ChatView key={shown.key} initialMessages={shown.messages} threadId={shown.threadId} onThread={handleThread} />
+      <ChatView
+        key={shown.key}
+        initialMessages={shown.messages}
+        threadId={shown.threadId}
+        onThread={handleThread}
+        reportCount={reportCount}
+        onOpenFiles={onOpenFiles}
+        onStartInterview={onStartInterview}
+      />
     </div>
   );
 }

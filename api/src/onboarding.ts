@@ -1,5 +1,5 @@
-import { findCompanyByUserId, type CompanyDoc } from "@/lib/companies";
-import type { OnboardingStage } from "@/lib/data/types";
+import { findCompanyByUserId, type CompanyDoc } from "./companies";
+import type { OnboardingStage } from "./data/types";
 
 /**
  * Where a returning user belongs.
@@ -14,7 +14,7 @@ import type { OnboardingStage } from "@/lib/data/types";
  * `company_saved → awaiting_data → analyzing → questions → plan_ready` — so the
  * destination is a lookup, not a new piece of state to keep in sync.
  *
- * Server-only: it reads Mongo through `@/lib/companies`.
+ * Server-only: it reads Mongo through `./companies`.
  */
 
 /**

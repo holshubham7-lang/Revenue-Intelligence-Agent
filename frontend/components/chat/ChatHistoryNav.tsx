@@ -42,10 +42,13 @@ export type ChatHistoryNavProps = {
  */
 export function ChatHistoryNav({ initialThreads, onNavigate }: ChatHistoryNavProps) {
   const [threads, setThreads] = useState<ChatThreadEntry[]>(initialThreads);
+  const [loading, setLoading] = useState(false);
   const activeId = useSyncExternalStore(subscribeToOpenThread, getOpenThread, getOpenThreadOnServer);
 
   /** Best-effort: a list that fails to refresh is not worth interrupting a chat over. */
   const refresh = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const response = await fetch("/api/chat/threads", {
         credentials: "include",
@@ -56,8 +59,10 @@ export function ChatHistoryNav({ initialThreads, onNavigate }: ChatHistoryNavPro
       if (Array.isArray(data.threads)) setThreads(data.threads);
     } catch {
       // Keep the rows already on screen.
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     const onThreadsChanged = () => void refresh();
