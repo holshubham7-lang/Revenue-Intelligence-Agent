@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { ErrorToastHost } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/ToastProvider";
 import { SocialButtons } from "@/components/signup/SocialButtons";
 import { postJson } from "@/lib/api/csrf-client";
 import { startOAuth } from "@/lib/auth/oauth-client";
 import type { ProviderKey } from "@/lib/contracts";
-import { signin } from "@/lib/content";
+import { signin, toasts } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
@@ -64,12 +64,31 @@ export function SignInForm({
 
   const router = useRouter();
   const copy = signin.form;
+  const { toast } = useToast();
+
+  /**
+   * Reports a failure twice: as the toast, which everyone sees and which
+   * clears itself after five seconds, and as `formError`, which is what keeps
+   * the provider-console hint underneath it on screen.
+   */
+  function showError(message: string) {
+    setFormError(message);
+    toast({ title: toasts.signin.error, description: message, variant: "error" });
+  }
+
+  /* An OAuth callback that failed hands the reason down from the server
+     component, so the toast has to be raised on arrival rather than from a
+     handler. `initialError` is a render-time constant, so this runs once. */
+  useEffect(() => {
+    if (initialError) {
+      toast({ title: toasts.signin.error, description: initialError, variant: "error" });
+    }
+  }, [initialError, toast]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || success) return;
 
-    setFormError(null);
     setSubmitting(true);
     try {
       const res = await postJson("/api/auth/signin", {
@@ -87,6 +106,7 @@ export function SignInForm({
         }
         throw new Error(message ?? "request_failed");
       }
+      toast({ ...toasts.signin.success, variant: "success" });
       setSuccess(true);
       // The API returns where this user's onboarding state says they belong:
       // `/company` if they have never completed the profile, otherwise the next
@@ -97,7 +117,7 @@ export function SignInForm({
     } catch (err) {
       const sentinels = new Set(["request_failed", "csrf_failed"]);
       const msg = err instanceof Error ? err.message : "";
-      setFormError(
+      showError(
         sentinels.has(msg) || msg === ""
           ? fetchError ?? copy.errors.server
           : msg,
@@ -115,13 +135,12 @@ export function SignInForm({
   function continueWith(provider: ProviderKey) {
     if (pendingProvider || submitting) return;
     setPendingProvider(provider);
-    setFormError(null);
 
     /* Hands the browser to the provider. This does not come back on success —
        the page unloads — so the spinner is deliberately left showing. */
     const result = startOAuth(provider);
     if (!result.ok) {
-      setFormError(result.message);
+      showError(result.message);
       setPendingProvider(null);
     }
   }
@@ -162,11 +181,7 @@ export function SignInForm({
       </div>
 
       {/* Error toast — appears right under the divider */}
-      <ErrorToastHost
-        error={formError}
-        onDismiss={() => setFormError(null)}
-        placement="inline"
-      />
+      <div className="my-7 h-0" aria-hidden="true" />
 
       {/* Provider-console explanation, shown only for a failed social attempt. */}
       {formError && initialHint ? (

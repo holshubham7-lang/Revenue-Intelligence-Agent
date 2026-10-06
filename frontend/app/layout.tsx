@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans, Roboto } from "next/font/google";
 
 import { header, seo, site } from "@/lib/content";
+import { ToastViewport } from "@/components/ui/Toast";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
 /* --------------------------------------------------------------------------
@@ -111,7 +113,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <a href="#main-content" className="skip-link">
           {header.skipToContent}
         </a>
-        {children}
+        {/* Toasts live at the root so a message survives the route change that
+            follows it (sign-in → workspace, company → chat). */}
+        <ToastProvider>
+          {children}
+          <ToastViewport />
+        </ToastProvider>
       </body>
     </html>
   );

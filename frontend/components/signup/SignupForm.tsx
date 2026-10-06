@@ -5,11 +5,11 @@ import Link from "next/link";
 import { CircleCheck, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { ErrorToastHost } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/ToastProvider";
 import { SocialButtons, type ProviderKey } from "@/components/signup/SocialButtons";
 import { postJson } from "@/lib/api/csrf-client";
 import { startOAuth } from "@/lib/auth/oauth-client";
-import { signup } from "@/lib/content";
+import { signup, toasts } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 export function SignupForm() {
@@ -18,10 +18,11 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [pendingProvider, setPendingProvider] = useState<ProviderKey | null>(null);
+
+  const { toast } = useToast();
 
   const { terms } = signup.form;
   const termsLinks = terms.links.flatMap((link, i) => [
@@ -43,7 +44,6 @@ export function SignupForm() {
     event.preventDefault();
     if (submitting || success) return;
 
-    setFormError(null);
     setSubmitting(true);
     try {
       const res = await postJson("/api/auth/signup", {
@@ -62,6 +62,7 @@ export function SignupForm() {
         }
         throw new Error(message ?? "request_failed");
       }
+      toast({ ...toasts.signup.success, variant: "success" });
       setSuccess(true);
     } catch (err) {
       // A fetch rejection is a genuine network problem; our own sentinel errors
@@ -69,11 +70,14 @@ export function SignupForm() {
       // is the auth service speaking and is shown verbatim.
       const sentinels = new Set(["request_failed", "csrf_failed"]);
       const msg = err instanceof Error ? err.message : "";
-      setFormError(
-        sentinels.has(msg) || msg === ""
-          ? fetchError ?? signup.form.errors.server
-          : msg,
-      );
+      toast({
+        title: toasts.signup.error,
+        description:
+          sentinels.has(msg) || msg === ""
+            ? fetchError ?? signup.form.errors.server
+            : msg,
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -88,13 +92,16 @@ export function SignupForm() {
   function continueWith(provider: ProviderKey) {
     if (pendingProvider || submitting) return;
     setPendingProvider(provider);
-    setFormError(null);
 
     /* Hands the browser to the provider. This does not come back on success —
        the page unloads — so the spinner is deliberately left showing. */
     const result = startOAuth(provider);
     if (!result.ok) {
-      setFormError(result.message);
+      toast({
+        title: toasts.signup.error,
+        description: result.message,
+        variant: "error",
+      });
       setPendingProvider(null);
     }
   }
@@ -154,13 +161,6 @@ export function SignupForm() {
         <span className="text-xs text-ink-subtle">{signup.form.divider}</span>
         <span className="h-px flex-1 bg-line" />
       </div>
-
-      {/* Error toast — appears right under the divider */}
-      <ErrorToastHost
-        error={formError}
-        onDismiss={() => setFormError(null)}
-        placement="inline"
-      />
 
       {/* Account form ---------------------------------------------------- */}
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
