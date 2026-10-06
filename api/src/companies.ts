@@ -19,10 +19,22 @@ export type CompanyInput = {
   website: string | null;
   industry: string | null;
   companySize: string | null;
+  companyType: string | null;
   country: string | null;
-  revenueRange: string;
+  state: string | null;
+  city: string | null;
+  phone: string | null;
+  /** Optional: an empty string collapses to `null` on save. */
+  revenueRange: string | null;
   problem: string | null;
 };
+
+/**
+ * The fields a submit cannot go without. Everything else — including annual
+ * revenue range — is optional, so an incomplete profile can still be saved and
+ * finished later. Mirrored by the `required` markers in `CompanyForm`.
+ */
+export const REQUIRED_COMPANY_FIELDS = ["companyName", "companyType", "country", "phone"] as const;
 
 export type CompanyField = keyof CompanyInput;
 
@@ -64,11 +76,38 @@ export type CompanyAssessment = {
 };
 
 const WORD_LIMIT = company.form.problem.maxWords;
-const OPTIONS: Record<"industry" | "companySize" | "revenueRange", readonly string[]> = {
+const OPTIONS: Record<
+  "industry" | "companySize" | "companyType" | "revenueRange",
+  readonly string[]
+> = {
   industry: company.form.industry.options,
   companySize: company.form.companySize.options,
+  companyType: company.form.companyType.options,
   revenueRange: company.form.revenueRange.options,
 };
+
+/** Phone numbers are free text with a country code — checked for digits only. */
+const PHONE_PATTERN = /^\+?[\d\s()-]{7,25}$/;
+
+/**
+ * Accepts a bare domain (`acme.com`, `www.acme.com`) as readily as a full URL
+ * (`https://acme.com`), because people type both. A scheme is assumed for the
+ * check; what the user typed is stored unchanged.
+ */
+function looksLikeWebsite(value: string): boolean {
+  const withScheme = /^[a-zA-Z][\w+.-]*:\/\//.test(value) ? value : `https://${value}`;
+  let host: string;
+  try {
+    const url = new URL(withScheme);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    host = url.hostname;
+  } catch {
+    return false;
+  }
+  // A single label is a hostname the browser would treat as an intranet name,
+  // not the public website this field is asking for.
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(host);
+}
 
 function strOrNull(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -92,11 +131,14 @@ export function validateCompany(raw: unknown): CompanyFormResult {
     typeof input.companyName === "string" ? input.companyName.trim() : "";
   const website = strOrNull(input.website);
   const country = strOrNull(input.country);
+  const state = strOrNull(input.state);
+  const city = strOrNull(input.city);
+  const phone = strOrNull(input.phone);
   const problem = strOrNull(input.problem);
   const industry = strOrNull(input.industry);
   const companySize = strOrNull(input.companySize);
-  const revenueRange =
-    typeof input.revenueRange === "string" ? input.revenueRange.trim() : "";
+  const companyType = strOrNull(input.companyType);
+  const revenueRange = strOrNull(input.revenueRange);
 
   if (companyName.length === 0) {
     fields.companyName = "Company name is required.";
@@ -104,18 +146,33 @@ export function validateCompany(raw: unknown): CompanyFormResult {
     fields.companyName = "Company name must be 200 characters or fewer.";
   }
 
+  if (country === null) {
+    fields.country = "Country is required.";
+  } else if (country.length > 120) {
+    fields.country = "Country must be 120 characters or fewer.";
+  }
+
+  if (phone === null) {
+    fields.phone = "Phone number is required.";
+  } else if (!PHONE_PATTERN.test(phone)) {
+    fields.phone =
+      "Phone number must be 7 to 25 characters, using digits, spaces, +, - or ().";
+  } else if (phone.replace(/\D/g, "").length < 7) {
+    fields.phone = "Phone number must contain at least 7 digits.";
+  }
+
+  if (companyType === null) {
+    fields.companyType = "Company type is required.";
+  } else if (!OPTIONS.companyType.includes(companyType)) {
+    fields.companyType = "Pick a company type from the list.";
+  }
+
   if (website !== null) {
     if (website.length > 2048) {
       fields.website = "Website must be 2048 characters or fewer.";
-    } else {
-      try {
-        const parsed = new URL(website);
-        if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) {
-          throw new Error("unsupported scheme");
-        }
-      } catch {
-        fields.website = "Enter a valid website URL (starting with http:// or https://).";
-      }
+    } else if (!looksLikeWebsite(website)) {
+      fields.website =
+        "Website must be a valid domain, for example acme.com or https://acme.com.";
     }
   }
 
@@ -127,13 +184,16 @@ export function validateCompany(raw: unknown): CompanyFormResult {
     fields.companySize = "Pick a company size from the list.";
   }
 
-  if (country !== null && country.length > 120) {
-    fields.country = "Country must be 120 characters or fewer.";
+  if (state !== null && state.length > 120) {
+    fields.state = "State must be 120 characters or fewer.";
   }
 
-  if (revenueRange.length === 0) {
-    fields.revenueRange = "Annual revenue range is required.";
-  } else if (!OPTIONS.revenueRange.includes(revenueRange)) {
+  if (city !== null && city.length > 120) {
+    fields.city = "City must be 120 characters or fewer.";
+  }
+
+  /* Optional, but a value that is there must be one of the options offered. */
+  if (revenueRange !== null && !OPTIONS.revenueRange.includes(revenueRange)) {
     fields.revenueRange = "Pick a revenue range from the list.";
   }
 
@@ -146,7 +206,19 @@ export function validateCompany(raw: unknown): CompanyFormResult {
 
   return {
     ok: true,
-    data: { companyName, website, industry, companySize, country, revenueRange, problem },
+    data: {
+      companyName,
+      website,
+      industry,
+      companySize,
+      companyType,
+      country,
+      state,
+      city,
+      phone,
+      revenueRange,
+      problem,
+    },
   };
 }
 
@@ -175,8 +247,12 @@ export function toCompanyFormValues(doc: CompanyDoc): CompanyFormValues {
     website: doc.website ?? "",
     industry: doc.industry ?? "",
     companySize: doc.companySize ?? "",
+    companyType: doc.companyType ?? "",
     country: doc.country ?? "",
-    revenueRange: doc.revenueRange,
+    state: doc.state ?? "",
+    city: doc.city ?? "",
+    phone: doc.phone ?? "",
+    revenueRange: doc.revenueRange ?? "",
     problem: doc.problem ?? "",
   };
 }
@@ -205,7 +281,11 @@ export async function saveCompanyRegistration(
         website: data.website,
         industry: data.industry,
         companySize: data.companySize,
+        companyType: data.companyType,
         country: data.country,
+        state: data.state,
+        city: data.city,
+        phone: data.phone,
         revenueRange: data.revenueRange,
         problem: data.problem,
         updatedAt: now,
