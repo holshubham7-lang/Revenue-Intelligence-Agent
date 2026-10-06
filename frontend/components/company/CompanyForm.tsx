@@ -33,7 +33,7 @@ function SelectField({
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-ink">
         {label}
-        {required && <span className="text-negative"> *</span>}
+        {required && <span className="text-brand"> *</span>}
       </label>
       <div className="relative">
         <select
@@ -93,11 +93,7 @@ export function CompanyForm({
   const [website, setWebsite] = useState(initialValues?.website ?? "");
   const [industry, setIndustry] = useState(initialValues?.industry ?? "");
   const [companySize, setCompanySize] = useState(initialValues?.companySize ?? "");
-  const [companyType, setCompanyType] = useState(initialValues?.companyType ?? "");
   const [country, setCountry] = useState(initialValues?.country ?? "");
-  const [state, setState] = useState(initialValues?.state ?? "");
-  const [city, setCity] = useState(initialValues?.city ?? "");
-  const [phone, setPhone] = useState(initialValues?.phone ?? "");
   const [revenueRange, setRevenueRange] = useState(initialValues?.revenueRange ?? "");
   const [problem, setProblem] = useState(initialValues?.problem ?? "");
 
@@ -115,31 +111,9 @@ export function CompanyForm({
   );
   const problemOverLimit = problemWordCount > form.problem.maxWords;
 
-  /**
-   * Labels of the required fields this submit left empty, in field order.
-   *
-   * Checked here rather than only by the API so the alert can name the fields
-   * in the same words the form labels them with — a generic "please fix the
-   * highlighted fields" is useless when nothing is highlighted.
-   */
-  function missingLabels(): string[] {
-    const missing: string[] = [];
-    if (!companyName.trim()) missing.push(form.companyName.label);
-    if (!companyType) missing.push(form.companyType.label);
-    if (!country.trim()) missing.push(form.country.label);
-    if (!phone.trim()) missing.push(form.phone.label);
-    return missing;
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || problemOverLimit) return;
-
-    const missing = missingLabels();
-    if (missing.length > 0) {
-      setFormError(`${form.errors.requiredPrefix} ${missing.join(", ")}.`);
-      return;
-    }
 
     setFormError(null);
     setSubmitting(true);
@@ -149,25 +123,15 @@ export function CompanyForm({
         website: website.trim(),
         industry,
         companySize,
-        companyType,
         country: country.trim(),
-        state: state.trim(),
-        city: city.trim(),
-        phone: phone.trim(),
         revenueRange,
         problem: problem.trim(),
       });
       if (!res.ok) {
         let message: string | null = null;
         try {
-          const data = (await res.json()) as {
-            error?: { message?: string; fields?: Record<string, string> };
-          };
-          /* A 422 carries one message per field, each led by the field name, so
-             they say exactly what to fix without decoding a generic banner. */
-          const perField = Object.values(data.error?.fields ?? {});
-          message =
-            perField.length > 0 ? perField.join(" ") : (data.error?.message ?? null);
+          const data = (await res.json()) as { error?: { message?: string } };
+          message = data.error?.message ?? null;
         } catch {
           // no JSON body to read — fall through to the generic message
         }
@@ -251,13 +215,11 @@ export function CompanyForm({
             <div className="sm:col-span-2">
               <label htmlFor="companyName" className="mb-1.5 block text-sm font-semibold text-ink">
                 {form.companyName.label}
-                <span className="text-negative"> *</span>
               </label>
               <input
                 id="companyName"
                 name="companyName"
                 type="text"
-                required
                 autoComplete="organization"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
@@ -290,16 +252,7 @@ export function CompanyForm({
               </p>
             </div>
 
-            {/* Company type (required) + industry */}
-            <SelectField
-              id="companyType"
-              label={form.companyType.label}
-              placeholder={form.companyType.placeholder}
-              options={form.companyType.options}
-              value={companyType}
-              onChange={setCompanyType}
-              required
-            />
+            {/* Industry + company size */}
             <SelectField
               id="industry"
               label={form.industry.label}
@@ -308,8 +261,6 @@ export function CompanyForm({
               value={industry}
               onChange={setIndustry}
             />
-
-            {/* Company size + annual revenue range */}
             <SelectField
               id="companySize"
               label={form.companySize.label}
@@ -318,6 +269,8 @@ export function CompanyForm({
               value={companySize}
               onChange={setCompanySize}
             />
+
+            {/* Annual revenue range + country */}
             <SelectField
               id="revenueRange"
               label={form.revenueRange.label}
@@ -325,76 +278,20 @@ export function CompanyForm({
               options={form.revenueRange.options}
               value={revenueRange}
               onChange={setRevenueRange}
+              required
             />
-
-            {/* Country + phone (both required) */}
             <div>
               <label htmlFor="country" className="mb-1.5 block text-sm font-semibold text-ink">
                 {form.country.label}
-                <span className="text-negative"> *</span>
               </label>
               <input
                 id="country"
                 name="country"
                 type="text"
-                required
                 autoComplete="country-name"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder={form.country.placeholder}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-semibold text-ink">
-                {form.phone.label}
-                <span className="text-negative"> *</span>
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                required
-                inputMode="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={form.phone.placeholder}
-                className={fieldClass}
-              />
-              <p id="phone-hint" className="mt-1.5 text-sm text-ink-subtle">
-                {form.phone.hint}
-              </p>
-            </div>
-
-            {/* State + city (both optional) */}
-            <div>
-              <label htmlFor="state" className="mb-1.5 block text-sm font-semibold text-ink">
-                {form.state.label}
-              </label>
-              <input
-                id="state"
-                name="state"
-                type="text"
-                autoComplete="address-level1"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder={form.state.placeholder}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="city" className="mb-1.5 block text-sm font-semibold text-ink">
-                {form.city.label}
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                autoComplete="address-level2"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder={form.city.placeholder}
                 className={fieldClass}
               />
             </div>

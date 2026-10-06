@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, FolderOpen, RefreshCcw } from "lucide-react";
+import { AlertCircle, Bot, FolderOpen, RefreshCcw } from "lucide-react";
 
 import { ChatMessage, type ChatMessageData } from "@/components/chat/ChatMessage";
 import { MessageComposer } from "@/components/chat/MessageComposer";
@@ -267,8 +267,8 @@ export function ChatView({
             {/* The agent, rather than a sparkle. A generic sparkle said "something
                 clever is happening"; a robot says who is answering, which is the
                 question a first-run user actually has on this screen. */}
-            <span className="text-6xl leading-none" role="img" aria-label="Assistant">
-              🤖
+            <span className="relative inline-flex size-16 items-center justify-center rounded-card bg-brand-soft text-brand">
+              <Bot className="size-8" strokeWidth={1.5} aria-hidden="true" />
             </span>
             <h1 className="mt-5 font-display text-2xl font-bold tracking-tight text-ink">
               {chat.title}
@@ -368,6 +368,9 @@ export function ChatView({
             label={chat.sendLabel}
             disabled={phase !== "idle"}
             hint={chat.footnote}
+            {...(onOpenFiles
+              ? { onAttach: onOpenFiles, attachLabel: chat.attachLabel }
+              : {})}
           />
         </div>
       </div>

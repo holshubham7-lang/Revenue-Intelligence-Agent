@@ -60,23 +60,12 @@ export function CompanyDetails({ record }: { record: CompanyRecord }) {
   const { values } = record;
 
   const website = values.website.trim();
-  /* A saved website may be a bare domain, which is not a usable href as-is. */
-  const websiteHref = website
-    ? /^https?:\/\//i.test(website)
-      ? website
-      : `https://${website}`
-    : null;
-
   const rows: Row[] = [
     { label: form.companyName.label, value: values.companyName },
-    { label: form.companyType.label, value: values.companyType || null },
-    { label: form.website.label, value: website, href: websiteHref ?? undefined },
-    { label: form.phone.label, value: values.phone || null },
+    { label: form.website.label, value: website, href: website || undefined },
     { label: form.industry.label, value: values.industry || null },
     { label: form.companySize.label, value: values.companySize || null },
     { label: form.country.label, value: values.country || null },
-    { label: form.state.label, value: values.state || null },
-    { label: form.city.label, value: values.city || null },
     { label: form.revenueRange.label, value: values.revenueRange || null },
     { label: form.problem.label, value: values.problem || null, wide: true },
     { label: view.createdLabel, value: formatDate(record.createdAt) || null },

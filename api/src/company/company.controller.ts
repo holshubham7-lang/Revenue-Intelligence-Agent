@@ -28,8 +28,8 @@ export class CompaniesController {
    * cookie, and server-side field validation against the same option lists the
    * form offers. One company record per user; a repeat submission updates it.
    *
-   * Request:  { companyName, website, industry, companySize, companyType,
-   *             country, state, city, phone, revenueRange, problem }
+   * Request:  { companyName, website, industry, companySize, country,
+   *             revenueRange, problem }
    * Success:  201 { company: { id, name } }
    * Errors:   400 invalid_json · 401 unauthenticated · 403 csrf · 422 validation · 500
    */
