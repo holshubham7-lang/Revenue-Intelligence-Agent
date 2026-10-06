@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
-import { ArrowUp, Paperclip } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,13 +23,6 @@ type MessageComposerProps = {
   disabled?: boolean;
   /** Optional status line shown beside the send button. */
   hint?: ReactNode;
-  /**
-   * Opens the report picker. Supplied only where a report can be attached, so
-   * the interview composer renders without it.
-   */
-  onAttach?: () => void;
-  /** Accessible name for the attach button. */
-  attachLabel?: string;
 };
 
 /**
@@ -46,8 +39,6 @@ export function MessageComposer({
   label,
   disabled = false,
   hint,
-  onAttach,
-  attachLabel,
 }: MessageComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -83,20 +74,6 @@ export function MessageComposer({
           placeholder={placeholder}
           className="max-h-48 min-h-6 flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-relaxed text-ink transition-colors placeholder:text-ink-subtle focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
-        {/* Sits beside the textarea rather than inside it: a control inside the
-            field would be read out as part of the message being typed, and the
-            Enter-to-send key handling would have to step around it. */}
-        {onAttach ? (
-          <button
-            type="button"
-            onClick={onAttach}
-            disabled={disabled}
-            aria-label={attachLabel}
-            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-bg hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Paperclip className="size-4" strokeWidth={1.75} aria-hidden="true" />
-          </button>
-        ) : null}
         <button
           type="button"
           onClick={onSubmit}
