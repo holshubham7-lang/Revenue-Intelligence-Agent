@@ -777,8 +777,8 @@ export const company = {
     },
     website: {
       label: "Website",
-      placeholder: "https://acme.com",
-      hint: "Optional — used to enrich your industry context.",
+      placeholder: "acme.com",
+      hint: "Optional — accepts acme.com or https://acme.com.",
     },
     industry: {
       label: "Industry",
@@ -790,9 +790,27 @@ export const company = {
       placeholder: "Select a range",
       options: ["1–10 people", "11–50 people", "51–200 people", "201–500 people", "500+ people"],
     },
+    companyType: {
+      label: "Company type",
+      placeholder: "Select a company type",
+      options: ["Beginner", "Startup", "Pvt Ltd", "MNC"],
+    },
     country: {
       label: "Country",
       placeholder: "India",
+    },
+    state: {
+      label: "State",
+      placeholder: "Maharashtra",
+    },
+    city: {
+      label: "City",
+      placeholder: "Mumbai",
+    },
+    phone: {
+      label: "Phone number",
+      placeholder: "+91 98765 43210",
+      hint: "Include the country code so we can reach you.",
     },
     revenueRange: {
       label: "Annual revenue range",
@@ -817,6 +835,8 @@ export const company = {
         "We couldn't reach the service. Check your connection and try again.",
       server:
         "Couldn't save your company right now. Please try again in a moment.",
+      /* Names the fields the submit left empty, so the alert is actionable. */
+      requiredPrefix: "Please fill in:",
     },
   },
   chat: {

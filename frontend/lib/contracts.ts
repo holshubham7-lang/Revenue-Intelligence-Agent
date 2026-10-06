@@ -30,7 +30,11 @@ export type CompanyFormValues = {
   website: string;
   industry: string;
   companySize: string;
+  companyType: string;
   country: string;
+  state: string;
+  city: string;
+  phone: string;
   revenueRange: string;
   problem: string;
 };
