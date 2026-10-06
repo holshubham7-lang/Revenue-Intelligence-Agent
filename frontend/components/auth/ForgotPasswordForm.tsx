@@ -5,8 +5,8 @@ import Link from "next/link";
 import { CircleCheck, KeyRound, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { ErrorToastHost } from "@/components/ui/Toast";
-import { forgotPassword } from "@/lib/content";
+import { useToast } from "@/components/ui/ToastProvider";
+import { forgotPassword, toasts } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,17 +18,22 @@ import { cn } from "@/lib/utils";
  */
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
+  const [, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
 
   const copy = forgotPassword.form;
+  const { toast } = useToast();
+
+  function showError(message: string) {
+    setFormError(message);
+    toast({ title: toasts.forgotPassword.error, description: message, variant: "error" });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || sent) return;
 
-    setFormError(null);
     setSubmitting(true);
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -37,14 +42,14 @@ export function ForgotPasswordForm() {
         body: JSON.stringify({ email: email.trim() }),
       });
       if (!res.ok) throw new Error("request_failed");
+      toast({ ...toasts.forgotPassword.success, variant: "success" });
+      setSent(true);
     } catch {
       const offline = typeof navigator !== "undefined" && !navigator.onLine;
-      setFormError(offline ? copy.errors.network : copy.errors.server);
+      showError(offline ? copy.errors.network : copy.errors.server);
+    } finally {
       setSubmitting(false);
-      return;
     }
-    setSubmitting(false);
-    setSent(true);
   }
 
   const fieldClass = cn(
@@ -54,9 +59,6 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="relative w-full max-w-[26rem]">
-      {/* Error toast — centred over the card */}
-      <ErrorToastHost error={formError} onDismiss={() => setFormError(null)} />
-
       <div className="rounded-card border border-line bg-bg-elevated p-7 shadow-inner sm:p-8">
       <span className="inline-flex size-12 items-center justify-center rounded-tile bg-brand-soft text-brand">
         {sent ? (

@@ -28,6 +28,8 @@
   --ink: #0f172a; /* primary   — 17.9:1 on white */
   --ink-muted: #475569; /* secondary —  7.5:1 on white */
   --ink-subtle: #64748b; /* tertiary  —  4.8:1 on white */
+  /* Foreground for a SOLID --ink fill (toasts, badges) — never for body text */
+  --ink-fg: #ffffff; /* 17.9:1 on --ink */
 
   /* Lines */
   --line: #e2e8f0;
@@ -52,6 +54,9 @@
   --positive-soft: #d1fae5;
   --negative: #b91c1c;
   --negative-soft: #fee2e2;
+  /* Foreground for a SOLID --negative fill (error toasts) — never for body
+     text, which always sits on --negative-soft and uses --negative itself. */
+  --negative-fg: #ffffff; /* 6.5:1 on --negative */
 
   --ring: #2a5f3e;
 
@@ -88,6 +93,8 @@
   --ink: #f1f5f9; /*  15.4:1 on --bg-elevated */
   --ink-muted: #a8b6c8; /*  7.9:1 on --bg-elevated */
   --ink-subtle: #8496ac; /*  5.0:1 on --bg-elevated */
+  /* The dark theme flips the fill light, so the text on it flips dark. */
+  --ink-fg: #0b1220; /* 17.2:1 on --ink */
 
   --line: #1e2e45;
   --line-strong: #2b3d57;
@@ -108,6 +115,7 @@
   --positive-soft: #06342a;
   --negative: #f87171;
   --negative-soft: #3d1414;
+  --negative-fg: #0b1220; /* 6.8:1 on --negative */
 
   --ring: #5fbf8f;
 
@@ -129,6 +137,7 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-ink-subtle: var(--ink-subtle);
+  --color-ink-fg: var(--ink-fg);
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
@@ -149,6 +158,7 @@
   --color-positive-soft: var(--positive-soft);
   --color-negative: var(--negative);
   --color-negative-soft: var(--negative-soft);
+  --color-negative-fg: var(--negative-fg);
 
   --color-ring: var(--ring);
 
@@ -350,6 +360,25 @@
 
 @utility animate-in-delay-3 {
   animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+/* Toasts — slide down from the top edge. A plain class rather than an
+   @utility because it is applied by components/ui/Toast.tsx as part of a
+   component's own styling, not as a layout knob. Neutralised below by the
+   reduced-motion block like every other keyframe in this file. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.toast-item {
+  animation: toast-in 0.22s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

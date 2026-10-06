@@ -1028,3 +1028,53 @@ export const placeholderPages = {
 /** Shared "coming soon" body for every placeholder route. */
 export const placeholderBody =
   "This page is a placeholder while we finish building it. Everything on the home page is fully functional — head back there if you would like to take a look around." as const;
+
+/* -------------------------------------------------------------------------- */
+/* Toasts                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Success/error notifications.
+ *
+ * Every screen reports the outcome of an async action through the single
+ * `ToastProvider` mounted in the root layout, so the titles and descriptions
+ * live here next to the rest of the copy. Errors always carry their own full
+ * message as the description — the title only names which action failed.
+ */
+export const toasts = {
+  dismiss: "Dismiss",
+  /** Client-side validation, where the description already names the fields. */
+  checkDetails: "Check your details",
+  signup: {
+    success: {
+      title: "Account created",
+      description: "Your account is ready. Sign in to continue.",
+    },
+    error: "Sign up failed",
+  },
+  signin: {
+    success: {
+      title: "Welcome back",
+      description: "Signed in successfully. Redirecting…",
+    },
+    error: "Sign in failed",
+  },
+  forgotPassword: {
+    success: {
+      title: "Reset link sent",
+      description: "If an account exists for that email, a secure link is on its way.",
+    },
+    error: "Couldn't send the reset link",
+  },
+  company: {
+    created: {
+      title: "Company created",
+      description: "Your workspace is ready. Setting up your assistant…",
+    },
+    updated: {
+      title: "Company updated",
+      description: "Your company details were saved.",
+    },
+    error: "Couldn't save your company",
+  },
+} as const;

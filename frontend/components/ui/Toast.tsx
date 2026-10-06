@@ -1,95 +1,78 @@
 "use client";
 
-import { useEffect } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CircleAlert, X } from "lucide-react";
-
+import { Icon } from "@/components/ui/Icon";
+import { useToast } from "@/components/ui/ToastProvider";
+import type { Toast, ToastVariant } from "@/components/ui/ToastProvider";
+import { toasts as toastCopy } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
- * Error toast shown against the auth form column.
+ * Solid-fill notification stack.
  *
- * `placement="top"` floats it centred at the top edge of the form block;
- * `placement="inline"` drops it into normal flow (used right after the
- * "or continue with your work email" divider). The outer div does any
- * positioning (static, no motion) and the inner `motion.div` does the
- * entrance/exit so the two never fight over `transform`. Auto-dismisses after
- * a beat, and a close button dismisses instantly. Under `prefers-reduced-motion`
- * the animation collapses to zero duration while the message still appears.
+ * Ported from v1.0: one fixed, top-centred column above everything else, each
+ * item a solid colour card with a title, an optional one-line description and
+ * a Dismiss button, auto-dismissed after five seconds by the provider.
+ *
+ * The fills are the semantic tokens rather than v1.0's literal `brand-600` /
+ * `danger-600`, and the text on them uses the `*-fg` tokens so the pair stays
+ * above 4.5:1 in both themes — `--brand` and `--negative` both flip to light
+ * hues in dark mode, where white text would collapse to ~2:1.
+ *
+ * `role="alert"` on errors is announced assertively; success and info sit
+ * under `role="status"` so they do not interrupt a screen reader mid-sentence.
  */
-export function ErrorToast({
-  message,
-  onDismiss,
-  placement = "top",
-}: {
-  message: string;
-  onDismiss: () => void;
-  placement?: "top" | "inline";
-}) {
-  const reduceMotion = useReducedMotion();
+const variantStyles: Record<ToastVariant, string> = {
+  success: "bg-brand text-brand-fg",
+  error: "bg-negative text-negative-fg",
+  info: "bg-ink text-ink-fg",
+};
 
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 5000);
-    return () => clearTimeout(timer);
-  }, [message, onDismiss]);
-
-  const wrapper = cn(
-    "pointer-events-none w-full max-w-sm",
-    placement === "top" &&
-      "absolute top-2 left-1/2 z-40 -translate-x-1/2 px-2",
-  );
+function ToastItem({ toast }: { toast: Toast }) {
+  const { dismiss } = useToast();
 
   return (
-    <div className={wrapper}>
-      <motion.div
-        role="alert"
-        initial={{ opacity: 0, scale: 0.92, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{
-          duration: reduceMotion ? 0 : 0.32,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-        className={cn(
-          "pointer-events-auto flex w-full items-start gap-3 rounded-card border border-negative/30 bg-negative-soft p-4 text-negative shadow-xl shadow-black/10",
-          placement === "inline" && "mb-5",
-        )}
+    <div
+      role={toast.variant === "error" ? "alert" : "status"}
+      className={cn(
+        "toast-item pointer-events-auto flex w-full items-center justify-between gap-4 rounded-tile px-5 py-3.5 shadow-lg",
+        variantStyles[toast.variant],
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-snug">{toast.title}</p>
+        {toast.description ? (
+          <p className="mt-0.5 truncate text-sm leading-snug opacity-85">
+            {toast.description}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => dismiss(toast.id)}
+        aria-label={toastCopy.dismiss}
+        className="flex shrink-0 cursor-pointer items-center gap-1 text-xs font-semibold tracking-wide uppercase opacity-80 transition-opacity hover:opacity-100"
       >
-        <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-        <span className="flex-1 text-sm leading-relaxed">{message}</span>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss error"
-          className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors duration-200 ease-out hover:bg-negative/10"
-        >
-          <X className="size-4" strokeWidth={2} aria-hidden="true" />
-        </button>
-      </motion.div>
+        {toastCopy.dismiss}
+        <Icon name="close" className="size-4" />
+      </button>
     </div>
   );
 }
 
-/** Hosts a single error toast, animating it in and out. */
-export function ErrorToastHost({
-  error,
-  onDismiss,
-  placement = "top",
-}: {
-  error: string | null;
-  onDismiss: () => void;
-  placement?: "top" | "inline";
-}) {
+export function ToastViewport() {
+  const { toasts } = useToast();
+
   return (
-    <AnimatePresence>
-      {error && (
-        <ErrorToast
-          key={error}
-          message={error}
-          onDismiss={onDismiss}
-          placement={placement}
-        />
-      )}
-    </AnimatePresence>
+    <div
+      aria-live="polite"
+      aria-atomic="false"
+      className="pointer-events-none fixed inset-x-0 top-6 z-[100] flex flex-col items-center gap-3 px-4"
+    >
+      <div className="flex w-full flex-col gap-3 sm:max-w-lg">
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} />
+        ))}
+      </div>
+    </div>
   );
 }

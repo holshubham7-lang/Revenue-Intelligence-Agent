@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
-import { ErrorToastHost } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/ToastProvider";
 import { postJson } from "@/lib/api/csrf-client";
 import type { CompanyFormValues } from "@/lib/contracts";
-import { company } from "@/lib/content";
+import { company, toasts } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /** Native select styled to match the text inputs, with a custom chevron. */
@@ -101,10 +101,11 @@ export function CompanyForm({
   const [revenueRange, setRevenueRange] = useState(initialValues?.revenueRange ?? "");
   const [problem, setProblem] = useState(initialValues?.problem ?? "");
 
-  const [formError, setFormError] = useState<string | null>(null);
+  const [, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { form } = company;
+  const { toast } = useToast();
 
   const submitLabel = editing ? form.save : form.submit;
   const busyLabel = editing ? form.saving : form.submitting;
@@ -114,6 +115,11 @@ export function CompanyForm({
     [problem],
   );
   const problemOverLimit = problemWordCount > form.problem.maxWords;
+
+  function showError(message: string) {
+    setFormError(message);
+    toast({ title: toasts.company.error, description: message, variant: "error" });
+  }
 
   /**
    * Labels of the required fields this submit left empty, in field order.
@@ -137,7 +143,7 @@ export function CompanyForm({
 
     const missing = missingLabels();
     if (missing.length > 0) {
-      setFormError(`${form.errors.requiredPrefix} ${missing.join(", ")}.`);
+      showError(`${form.errors.requiredPrefix} ${missing.join(", ")}.`);
       return;
     }
 
@@ -176,6 +182,7 @@ export function CompanyForm({
       if (editing) {
         // Re-read the server component so the read-only view shows the new
         // values, then leave edit mode.
+        toast({ ...toasts.company.updated, variant: "success" });
         onSaved?.();
         router.refresh();
       } else {
@@ -184,12 +191,13 @@ export function CompanyForm({
            told to go and find a file before it could ask anything. Upload is now
            something the chat offers, so registration ends where the work happens
            and the first screen explains what to share. */
+        toast({ ...toasts.company.created, variant: "success" });
         router.push("/chat");
       }
     } catch (err) {
       const sentinels = new Set(["request_failed", "csrf_failed"]);
       const msg = err instanceof Error ? err.message : "";
-      setFormError(
+      showError(
         sentinels.has(msg) || msg === ""
           ? fetchError ?? form.errors.server
           : msg,
@@ -230,12 +238,6 @@ export function CompanyForm({
 
   return (
     <div className="relative w-full max-w-3xl">
-      <ErrorToastHost
-        error={formError}
-        onDismiss={() => setFormError(null)}
-        placement="top"
-      />
-
       <form
         onSubmit={handleSubmit}
         noValidate
