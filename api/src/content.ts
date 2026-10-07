@@ -797,7 +797,7 @@ export const company = {
     },
     country: {
       label: "Country",
-      placeholder: "India",
+      placeholder: "Select a country",
     },
     state: {
       label: "State",
@@ -809,8 +809,8 @@ export const company = {
     },
     phone: {
       label: "Phone number",
-      placeholder: "+91 98765 43210",
-      hint: "Include the country code so we can reach you.",
+      placeholder: "Enter phone number",
+      hint: "Choose a country code, then enter your phone number.",
     },
     revenueRange: {
       label: "Annual revenue range",

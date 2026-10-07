@@ -38,7 +38,10 @@ const nextConfig: NextConfig = {
   /* The canonical brand logo is served from the marketing site — the same asset
      v1.0 used — so `next/image` needs that host allow-listed. */
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "www.stratvedatech.com" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "www.stratvedatech.com" },
+      { protocol: "https", hostname: "flagcdn.com", pathname: "/w20/**" },
+    ],
   },
   async rewrites() {
     return {

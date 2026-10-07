@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 
@@ -10,6 +10,9 @@ import { postJson } from "@/lib/api/csrf-client";
 import type { CompanyFormValues } from "@/lib/contracts";
 import { company, toasts } from "@/lib/content";
 import { cn } from "@/lib/utils";
+import { CountryCodeSelect } from "@/components/ui/CountryCodeSelect";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { COUNTRIES, parsePhoneNumber } from "@/lib/countries";
 
 /** Native select styled to match the text inputs, with a custom chevron. */
 function SelectField({
@@ -41,7 +44,7 @@ function SelectField({
           name={id}
           required={required}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           className={cn(
             "h-12 w-full appearance-none rounded-control border border-line bg-bg-elevated px-4 pr-10 text-[0.9375rem] text-ink shadow-inner transition-colors duration-200 ease-out",
             !value && "text-ink-subtle",
@@ -63,6 +66,42 @@ function SelectField({
           aria-hidden="true"
         />
       </div>
+    </div>
+  );
+}
+
+function SearchableField({
+  id,
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  options: readonly string[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-ink">
+        {label}
+      </label>
+      <SearchableSelect
+        id={id}
+        value={value}
+        options={options.map((option) => ({ value: option, label: option }))}
+        placeholder={placeholder}
+        searchPlaceholder={`Search ${label.toLowerCase()}`}
+        ariaLabel={`Select ${label.toLowerCase()}`}
+        onChange={onChange}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -97,9 +136,65 @@ export function CompanyForm({
   const [country, setCountry] = useState(initialValues?.country ?? "");
   const [state, setState] = useState(initialValues?.state ?? "");
   const [city, setCity] = useState(initialValues?.city ?? "");
-  const [phone, setPhone] = useState(initialValues?.phone ?? "");
+  const [states, setStates] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [phone, setPhone] = useState(() => parsePhoneNumber(initialValues?.phone));
   const [revenueRange, setRevenueRange] = useState(initialValues?.revenueRange ?? "");
   const [problem, setProblem] = useState(initialValues?.problem ?? "");
+
+  const initialPhoneRef = useRef(initialValues?.phone);
+  useEffect(() => {
+    if (initialPhoneRef.current === initialValues?.phone) return;
+    initialPhoneRef.current = initialValues?.phone;
+    setPhone(parsePhoneNumber(initialValues?.phone));
+  }, [initialValues?.phone]);
+
+  const selectedCountry = COUNTRIES.find((item) => item.name === country);
+
+  useEffect(() => {
+    if (!selectedCountry) {
+      setStates([]);
+      setStatesLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setStatesLoading(true);
+    fetch(`/api/locations/states?country=${selectedCountry.iso2}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load states");
+        return (await response.json()) as { states: string[] };
+      })
+      .then((data) => setStates(data.states))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setStates([]);
+      })
+      .finally(() => { if (!controller.signal.aborted) setStatesLoading(false); });
+    return () => controller.abort();
+  }, [selectedCountry?.iso2]);
+
+  useEffect(() => {
+    if (!selectedCountry || !state) {
+      setCities([]);
+      setCitiesLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setCitiesLoading(true);
+    const params = new URLSearchParams({ country: selectedCountry.iso2, state });
+    fetch(`/api/locations/cities?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load cities");
+        return (await response.json()) as { cities: string[] };
+      })
+      .then((data) => setCities(data.cities))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setCities([]);
+      })
+      .finally(() => { if (!controller.signal.aborted) setCitiesLoading(false); });
+    return () => controller.abort();
+  }, [selectedCountry?.iso2, state]);
 
   const [, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -133,7 +228,7 @@ export function CompanyForm({
     if (!companyName.trim()) missing.push(form.companyName.label);
     if (!companyType) missing.push(form.companyType.label);
     if (!country.trim()) missing.push(form.country.label);
-    if (!phone.trim()) missing.push(form.phone.label);
+    if (!phone.number.trim()) missing.push(form.phone.label);
     return missing;
   }
 
@@ -159,7 +254,7 @@ export function CompanyForm({
         country: country.trim(),
         state: state.trim(),
         city: city.trim(),
-        phone: phone.trim(),
+        phone: `${phone.countryCode}${phone.number}`.replace(/[^+\d]/g, ""),
         revenueRange,
         problem: problem.trim(),
       });
@@ -249,6 +344,10 @@ export function CompanyForm({
           </legend>
 
           <div className="grid gap-5 sm:grid-cols-2">
+            <h2 className="sm:col-span-2 border-b border-line pb-2 font-display text-base font-semibold text-ink">
+              Company details
+            </h2>
+
             {/* Company name */}
             <div className="sm:col-span-2">
               <label htmlFor="companyName" className="mb-1.5 block text-sm font-semibold text-ink">
@@ -329,77 +428,111 @@ export function CompanyForm({
               onChange={setRevenueRange}
             />
 
-            {/* Country + phone (both required) */}
-            <div>
+            <h2 className="sm:col-span-2 border-b border-line pb-2 font-display text-base font-semibold text-ink">
+              Location and contact
+            </h2>
+
+            {/* Country is required; State and City follow as optional fields. */}
+            <div className="sm:col-span-2">
               <label htmlFor="country" className="mb-1.5 block text-sm font-semibold text-ink">
                 {form.country.label}
                 <span className="text-negative"> *</span>
               </label>
-              <input
+              <SearchableSelect
                 id="country"
-                name="country"
-                type="text"
-                required
-                autoComplete="country-name"
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                options={[
+                  ...(country && !COUNTRIES.some((item) => item.name === country)
+                    ? [{ value: country, label: country }]
+                    : []),
+                  ...COUNTRIES.map((item) => ({
+                    value: item.name,
+                    label: item.name,
+                    searchText: item.iso2,
+                  })),
+                ]}
                 placeholder={form.country.placeholder}
-                className={fieldClass}
+                searchPlaceholder="Search countries"
+                ariaLabel="Select country"
+                required
+                onChange={(value) => {
+                  setCountry(value);
+                  setState("");
+                  setCity("");
+                  setCities([]);
+                }}
               />
             </div>
-            <div>
+            {/* State + city (both optional, dependent on the previous selection) */}
+            <SearchableField
+              id="state"
+              label={form.state.label}
+              placeholder={statesLoading ? "Loading states…" : form.state.placeholder}
+              options={state && !states.includes(state) ? [state, ...states] : states}
+              value={state}
+              onChange={(value) => {
+                setState(value);
+                setCity("");
+              }}
+              disabled={!selectedCountry || statesLoading || (states.length === 0 && !state)}
+            />
+            <SearchableField
+              id="city"
+              label={form.city.label}
+              placeholder={citiesLoading ? "Loading cities…" : form.city.placeholder}
+              options={city && !cities.includes(city) ? [city, ...cities] : cities}
+              value={city}
+              onChange={setCity}
+              disabled={!state || citiesLoading || (cities.length === 0 && !city)}
+            />
+
+            <div className="sm:col-span-2">
               <label htmlFor="phone" className="mb-1.5 block text-sm font-semibold text-ink">
                 {form.phone.label}
                 <span className="text-negative"> *</span>
               </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                required
-                inputMode="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={form.phone.placeholder}
-                className={fieldClass}
-              />
+              <div className="flex">
+                <CountryCodeSelect
+                  id="phone-country-code"
+                  value={phone.countryIso2}
+                  onChange={(selected) =>
+                    setPhone((current) => ({
+                      ...current,
+                      countryIso2: selected.iso2,
+                      countryCode: selected.dialCode,
+                    }))
+                  }
+                />
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  required
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  aria-describedby="phone-hint"
+                  value={phone.number}
+                  onChange={(e) =>
+                    setPhone((current) => ({
+                      ...current,
+                      number: e.target.value.replace(/[^0-9]/g, ""),
+                    }))
+                  }
+                  placeholder={form.phone.placeholder}
+                  className={cn(
+                    fieldClass,
+                    "min-w-0 flex-1 rounded-l-none rounded-r-control border-l-0 focus:z-10",
+                  )}
+                />
+              </div>
               <p id="phone-hint" className="mt-1.5 text-sm text-ink-subtle">
                 {form.phone.hint}
               </p>
             </div>
 
-            {/* State + city (both optional) */}
-            <div>
-              <label htmlFor="state" className="mb-1.5 block text-sm font-semibold text-ink">
-                {form.state.label}
-              </label>
-              <input
-                id="state"
-                name="state"
-                type="text"
-                autoComplete="address-level1"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder={form.state.placeholder}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="city" className="mb-1.5 block text-sm font-semibold text-ink">
-                {form.city.label}
-              </label>
-              <input
-                id="city"
-                name="city"
-                type="text"
-                autoComplete="address-level2"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder={form.city.placeholder}
-                className={fieldClass}
-              />
-            </div>
+            <h2 className="sm:col-span-2 border-b border-line pb-2 font-display text-base font-semibold text-ink">
+              Additional details
+            </h2>
 
             {/* Problem description / query */}
             <div className="sm:col-span-2">
