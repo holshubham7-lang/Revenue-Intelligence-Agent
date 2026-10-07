@@ -19,7 +19,6 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { Request, Response } from 'express';
-import * as bcrypt from 'bcryptjs';
 import {
   AdminAuditLog,
   AdminAuditLogDocument,
@@ -39,6 +38,7 @@ import {
 } from './admin-auth.guard.js';
 import { CurrentAdmin } from './current-admin.decorator.js';
 import { AdminService } from './admin.service.js';
+import { verifyAdminPassword } from './password.js';
 
 export type AdminProfile = {
   id: string;
@@ -100,7 +100,7 @@ export class AdminController {
     if (user.isBlocked) {
       throw new UnauthorizedException('Invalid email or password');
     }
-    const ok = await bcrypt.compare(dto.password, user.passwordHash);
+    const ok = await verifyAdminPassword(dto.password, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException('Invalid email or password');
     }
